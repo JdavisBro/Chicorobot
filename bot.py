@@ -1,11 +1,14 @@
 import random
 import json
+import tempfile
 from io import BytesIO
 from pathlib import Path
 
 import discord
 from discord import app_commands
 from PIL import Image, ImageChops#, ImageDraw, ImageFont
+from moviepy.editor import ImageSequenceClip
+import numpy
 
 with Path("TOKEN.txt").open("r") as f:
     TOKEN = f.readline().rstrip()
@@ -288,6 +291,8 @@ async def hair_autocomplete(interaction: discord.Interaction, current:str):
 @tree.command(guild=TEST_GUILD, description="Show a sprite.")
 async def sprite(interaction: discord.Interaction, sprite: str, animated: bool=False):
     await interaction.response.defer()
+    if sprite.lower() == "random":
+        sprite = random.choice([i.name for i in Path("sprites/").iterdir()])
     ims = []
     spriteDir = Path(f"sprites/{sprite}/")
     layers = [i.name for i in spriteDir.iterdir()]
@@ -301,14 +306,27 @@ async def sprite(interaction: discord.Interaction, sprite: str, animated: bool=F
         ims.append(im)
         if not animated:
             break
-    imbyte = BytesIO()
     if animated:
-        ims[0].save(imbyte, "GIF", save_all=True, disposal=2, optimize=True, interlace=False, loop=0, append_images=ims[1:])
+        location = None
+        # ims[0].save(imbyte, "GIF", save_all=True, disposal=2, optimize=True, interlace=False, loop=0, append_images=ims[1:])
+        temp = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
+        temp.close()
+
+        ImageSequenceClip([numpy.array(im) for im in ims], fps=12).on_color(color=(0, 255, 0)).write_videofile(temp.name)
+
+        file = discord.File(temp.name, f"{sprite}.mp4")
+        await interaction.followup.send(content=f"{sprite}:", file=file)
+        try:
+            Path(temp.name).unlink()
+            print(f"{temp.name} deleted.")
+        except PermissionError:
+            pass
     else:
+        imbyte = BytesIO()
         ims[0].save(imbyte, "PNG")
-    imbyte.seek(0)
-    file = discord.File(imbyte, f"{sprite}.{'gif' if animated else '.png'}")
-    await interaction.followup.send(content=f"{sprite}:", file=file)
+        imbyte.seek(0)
+        file = discord.File(imbyte, f"{sprite}..png")
+        await interaction.followup.send(content=f"{sprite}:", file=file)
 
 # @say.autocomplete("font")
 # async def font_autocomplete(interaction: discord.Interaction, current: str):
