@@ -1,0 +1,11 @@
+.venv
+.env
+venv
+
+sprites/
+Export_Sprites/
+TOKEN.txt
+update.sh
+
+# for now
+fonts
