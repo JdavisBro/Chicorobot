@@ -360,4 +360,8 @@ async def palette_autocomplete(interaction: discord.Interaction, current: str):
         i for i in palettes.keys() if current in i
     ] + ["random"])][:25]
 
+@tree.command(guild=TEST_GUILD, description="Send a picture of hair to number.")
+async def hair(interaction: discord.Interaction):
+    await interaction.response.send_message(content="https://cdn.discordapp.com/attachments/947900270992556033/967877113099219004/unknown.png", ephemeral=True)
+
 client.run(TOKEN)
