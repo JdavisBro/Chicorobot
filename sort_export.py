@@ -12,7 +12,7 @@ dogClothes = [
     "Bolt Tee",
     "Moon Tee",
     "Big Star",
-    "Shawl", # black tee?
+    "Black Tee",
     "Bee",
     "Big Flower",
     "High Nooner",
@@ -53,6 +53,13 @@ dogClothes = [
     "Gorgeous",
     "Royal", #
     "Hiker" #
+]
+
+blackTeeDuplicates = [
+    "Kerchief",
+    "Scarf",
+    "Shawl",
+    "Spike",
 ]
 
 dogClothes2 = [ # 0, 1 = hat colour, 1 = Under head above arm, 2 = Fit colour and above head
@@ -226,6 +233,10 @@ def main():
         frame = int(name[-1])
         newimpath = newDir / sprite / str(layer)
         if sprite == "Dog_body":
+            if dogClothes[frame] == "Black Tee":
+                for name in blackTeeDuplicates:
+                    newimpath.mkdir(parents=True, exist_ok=True)
+                    shutil.copy(impath, newimpath / f"{name}.png")
             newimpath = newimpath / f"{dogClothes[frame]}.png"
         elif sprite == "Dog_body2":
             newimpath = newimpath / f"{dogClothes2[frame]}.png"
