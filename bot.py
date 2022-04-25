@@ -273,7 +273,8 @@ async def hat_autocomplete(interaction: discord.Interaction, current: str):
     ls = sorted([
         i for i in ([i.name[:-4] for i in Path("sprites/Dog_hat/1/Hat/").iterdir()] + ["None", "Custom"] + extraHats) if current.lower() in i.lower()
     ])
-    ls.remove("Horns_1")
+    if "Horns_1" in ls:
+        ls.remove("Horns_1")
     return [app_commands.Choice(name=i, value=i) for i in ls][:25]
 
 @dog.autocomplete("hair")
