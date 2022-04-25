@@ -197,6 +197,8 @@ async def make_dog(interaction: discord.Interaction,
         im.alpha_composite(await colour_image(im2, body_col))
 
     for h in [hat, hat2]:
+        if h == "None" or h == "Custom" or h in extraHats:
+            continue
         if not Path(f"sprites/Dog_hat/1/Hat/{h}.png").exists():
             await interaction.followup.send(f"<:Pizza_OhGod:967483357388759070> `{h}` is not a hat!")
             return
@@ -254,31 +256,31 @@ async def clothes_autocomplete(interaction: discord.Interaction, current: str):
     ls = sorted([
         i.name[:-4]
         for i in Path("sprites/Dog_body/1/").iterdir()
-    ] + ["Custom"])[:25]
-    return [app_commands.Choice(name=i, value=i) for i in ls if current.lower() in i.lower()]
+    ] + ["Custom"])
+    return [app_commands.Choice(name=i, value=i) for i in ls if current.lower() in i.lower()][:25]
 
 @dog.autocomplete("expression")
 async def expression_autocomplete(interaction: discord.Interaction, current: str):
     ls = sorted([
         i.name[:-4]
         for i in Path("sprites/Dog_expression/1/").iterdir()
-    ])[:25]
-    return [app_commands.Choice(name=i, value=i) for i in ls if current.lower() in i.lower()]
+    ])
+    return [app_commands.Choice(name=i, value=i) for i in ls if current.lower() in i.lower()][:25]
 
 @dog.autocomplete("hat")
 @dog.autocomplete("hat2")
 async def hat_autocomplete(interaction: discord.Interaction, current: str):
     ls = sorted([
         i for i in ([i.name[:-4] for i in Path("sprites/Dog_hat/1/Hat/").iterdir()] + ["None", "Custom"] + extraHats) if current.lower() in i.lower()
-    ][:25])
-    return [app_commands.Choice(name=i, value=i) for i in ls]
+    ])
+    return [app_commands.Choice(name=i, value=i) for i in ls][:25]
 
 @dog.autocomplete("hair")
 async def hair_autocomplete(interaction: discord.Interaction, current:str):
     ls = sorted([
         i.name[:-4] for i in Path("sprites/Dog_hat/1/Hair/").iterdir() if current.lower() in i.name.lower()
-    ][:25])
-    return [app_commands.Choice(name=i, value=i) for i in ls]
+    ])
+    return [app_commands.Choice(name=i, value=i) for i in ls][:25]
 
 
 @tree.command(guild=TEST_GUILD, description="Show a sprite.")
