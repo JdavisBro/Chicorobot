@@ -177,7 +177,7 @@ async def make_dog(interaction: discord.Interaction,
     async def do_hat():
         for h in [hat, hat2]:
             if h == "None" or h in extraHats:
-                return
+                continue
             if h != "Custom":
                 im2 = Image.open(f"sprites/Dog_hat/1/Hat/{h}.png").resize((750, 750)) # Hat
                 im.alpha_composite( await colour_image(im2, hat_col))
