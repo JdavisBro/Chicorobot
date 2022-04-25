@@ -126,11 +126,15 @@ async def make_dog(interaction: discord.Interaction,
     im = await colour_image(Image.open(f"sprites/Dog_idle_B/1/{idleFrame:02}.png").resize((750, 750)), body_col)
 
     if clothes != "Custom":
+        if not Path(f"sprites/Dog_body/1/{clothes}.png").exists():
+            await interaction.followup.send(f"<:Pizza_OhGod:967483357388759070> `{clothes}` is not a clothing!")
+            return
         im2 = Image.open(f"sprites/Dog_body/1/{clothes}.png").resize((750, 750)) # Clothes
         im.alpha_composite(await colour_image(im2, clothes_col))
     else:
         if not custom_clothes:
-            await interaction.followup.send(content="<:Pizza_Cease:967483853910462536> You didn't supply a custom clothes!!!")
+            await interaction.followup.send(content="<:Pizza_Cease:967483853910462536> You didn't supply custom clothes!")
+            return
         im2 = BytesIO()
         await custom_clothes.save(im2)
         im2 = Image.open(im2, formats=["PNG"])
@@ -151,6 +155,9 @@ async def make_dog(interaction: discord.Interaction,
         if h in extraHats:
             im.alpha_composite(await colour_image(Image.open(f"sprites/Dog_body2/1/{h}_1.png"), hat_col))
 
+    if not Path(f"sprites/Dog_expression/1/{expression}.png").exists():
+        await interaction.followup.send(f"<:Pizza_OhGod:967483357388759070> `{expression}` is not an expression!")
+        return
     im2 = Image.open(f"sprites/Dog_expression/1/{expression}.png").resize((750, 750)) # Face
     im.alpha_composite(await colour_image(im2, body_col))    
 
@@ -162,6 +169,9 @@ async def make_dog(interaction: discord.Interaction,
             im.alpha_composite( await colour_image( Image.open(f"sprites/Dog_hat/1/Hat/{h}_1.png"), hat_col ) )
 
     if all([h in hairHats for h in [hat,hat2]]): # Hat shows hair
+        if not Path(f"sprites/Dog_hat/1/Hair/{hair}.png").exists():
+            await interaction.followup.send(f"<:Pizza_OhGod:967483357388759070> `{hair}` is not a hair!")
+            return
         im.alpha_composite( await colour_image(Image.open(f"sprites/Dog_hat/1/Hair/{hair}.png").resize((750, 750)), body_col ) )
 
     async def do_hat():
@@ -173,7 +183,8 @@ async def make_dog(interaction: discord.Interaction,
                 im.alpha_composite( await colour_image(im2, hat_col))
             else:
                 if not custom_hat:
-                    await interaction.followup.send(content="<:Pizza_Cease:967483853910462536> You didn't supply a custom hat!!!")
+                    await interaction.followup.send(content="<:Pizza_Cease:967483853910462536> You didn't supply a custom hat!")
+                    return
                 im2 = BytesIO()
                 await custom_hat.save(im2)
                 im2 = Image.open(im2, formats=["PNG"])
@@ -184,6 +195,11 @@ async def make_dog(interaction: discord.Interaction,
     async def do_ear():
         im2 = Image.open("sprites/Dog_idle_ear/1/03.png").resize((750, 750)) # Ear
         im.alpha_composite(await colour_image(im2, body_col))
+
+    for h in [hat, hat2]:
+        if not Path(f"sprites/Dog_hat/1/Hat/{h}.png").exists():
+            await interaction.followup.send(f"<:Pizza_OhGod:967483357388759070> `{h}` is not a hat!")
+            return
 
     if any([h in hatOverEar for h in [hat,hat2]]):
         await do_ear()
