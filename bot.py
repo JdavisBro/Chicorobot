@@ -358,9 +358,9 @@ async def palette(interaction: discord.Interaction, palette: str="Random"):
 
 @palette.autocomplete("palette")
 async def palette_autocomplete(interaction: discord.Interaction, current: str):
-    return [app_commands.Choice(name=i, value=i) for i in sorted([
-        i for i in palettes.keys() if current in i
-    ] + ["random"])][:25]
+    return [app_commands.Choice(name=i, value=i) for i in sorted(
+        [i for i in palettes.keys()] + ["random"]
+    ) if current in i][:25]
 
 @tree.command(guild=TEST_GUILD, description="Send a picture of hair to number.")
 async def hair(interaction: discord.Interaction):
