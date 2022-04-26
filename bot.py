@@ -329,14 +329,16 @@ async def sprite(interaction: discord.Interaction, sprite: str, animated: bool=F
     if animated:
         name = tempfile.mkdtemp()
         name = Path(name)
+        msg = await interaction.followup.send(content="Saving PNGs.")
         for i, im in enumerate(ims):
             im.save(name / f"{i:02}.png")
+        await msg.edit(content="Converting to gif.")
         process = subprocess.Popen(f"{imagemagick} -delay 10 -loop 0 -dispose Background {name / '*.png'} {name / 'out.gif'}",shell=True)
         if process.wait() != 0:
-            await interaction.followup.send(content="<:Pizza_Depressaroli:967482279670718474> Something went wrong (gif conversion error).")
+            await msg.edit(content="<:Pizza_Depressaroli:967482279670718474> Something went wrong (gif conversion error).")
             return
         file = discord.File(name / "out.gif", f"{sprite}.gif")
-        await interaction.followup.send(content=f"{sprite}:", file=file)
+        await msg.edit(content=f"{sprite}:", attachments=[file])
         del file
         try:
             shutil.rmtree(name)
