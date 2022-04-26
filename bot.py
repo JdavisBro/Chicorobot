@@ -312,7 +312,7 @@ async def sprite(interaction: discord.Interaction, sprite: str, animated: bool=F
         sprite = random.choice([i.name for i in Path("sprites/").iterdir()])
     ims = []
     spriteDir = Path(f"sprites/{sprite}/")
-    layers = [i for i in spriteDir.iterdir()]
+    layers = sorted([i for i in spriteDir.iterdir()], key=lambda item: item.stem)
     if sprite.endswith("_A"):
         layers += [i/"1" for i in Path("sprites/").glob("_".join(sprite.split("_")[:-1])+"_*") if i != spriteDir]
     i = 0
@@ -329,6 +329,7 @@ async def sprite(interaction: discord.Interaction, sprite: str, animated: bool=F
     if animated:
         name = tempfile.mkdtemp()
         name = Path(name)
+        print(f"Making temp: {str(name)}")
         msg = await interaction.followup.send(content="Saving PNGs.")
         for i, im in enumerate(ims):
             im.save(name / f"{i:02}.png")
@@ -342,6 +343,12 @@ async def sprite(interaction: discord.Interaction, sprite: str, animated: bool=F
         if process.returncode != 0:
             await msg.edit(content="<:Pizza_Depressaroli:967482279670718474> Something went wrong (gif conversion error).")
             print(f"GIF CONVERSION ERROR: {process.stderr}")
+            try:
+                shutil.rmtree(name)
+            except PermissionError:
+                print("Failed to delete file.")
+            else:
+                print(f"Deleted temp: {str(name)}")
             return
         file = discord.File(name / "out.gif", f"{sprite}.gif")
         await msg.edit(content=f"{sprite}:", attachments=[file])
@@ -350,6 +357,8 @@ async def sprite(interaction: discord.Interaction, sprite: str, animated: bool=F
             shutil.rmtree(name)
         except PermissionError:
             print("Failed to delete file.")
+        else:
+            print(f"Deleted temp: {str(name)}")
     else:
         imbyte = BytesIO()
         ims[0].save(imbyte, "PNG")
