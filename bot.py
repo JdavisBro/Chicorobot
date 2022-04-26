@@ -316,7 +316,7 @@ async def sprite(interaction: discord.Interaction, sprite: str, animated: bool=F
     if sprite.endswith("_A"):
         layers += [i/"1" for i in Path("sprites/").glob("_".join(sprite.split("_")[:-1])+"_*") if i != spriteDir]
     i = 0
-    for filePath in layers[0].iterdir():
+    for filePath in sorted(layers[0].iterdir(), key=lambda path: path.stem):
         im = Image.open(filePath).convert("RGBA")
         for layer in layers[1:]:
             name = filePath.name
@@ -360,10 +360,10 @@ async def sprite(interaction: discord.Interaction, sprite: str, animated: bool=F
 
 @sprite.autocomplete("sprite")
 async def sprite_autocomplete(interaction: discord.Interaction, current: str):
-    lst = [
+    lst = sorted([
         i.name
         for i in Path("sprites/").iterdir()
-    ] + ["Random"]
+    ] + ["Random"])
     return [app_commands.Choice(name=i, value=i) for i in lst if current.lower() in i.lower()][:25]
 
 @dog.error
