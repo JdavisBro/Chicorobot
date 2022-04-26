@@ -1,17 +1,29 @@
+import sys
 import random
 import json
 import tempfile
+import subprocess
+import shutil
 from io import BytesIO
 from pathlib import Path
 
 import discord
 from discord import app_commands
 from PIL import Image, ImageChops#, ImageDraw, ImageFont
-from moviepy.editor import ImageSequenceClip
-import numpy
+#from moviepy.editor import ImageSequenceClip
+#import numpy
 
 with Path("TOKEN.txt").open("r") as f:
     TOKEN = f.readline().rstrip()
+
+if sys.platform.startswith("win32") or sys.platform.startswith("cygwin"):
+    imagemagick = shutil.which("magick")
+else:
+    imagemagick = shutil.which("convert")
+if not imagemagick:
+    imagemagick = Path("imagemagick/convert.exe")
+    if not imagemagick.exists():
+        imagemagick = False
 
 intents = discord.Intents.default()
 client = discord.Client(intents=intents)
@@ -220,7 +232,8 @@ async def make_dog(interaction: discord.Interaction,
     await interaction.followup.send(content=f"Dog:\n`/dog expression:{expression} clothes:{clothes} hat:{hat} hair:{hair} hat2:{hat2} body_col:{('#%02x%02x%02x' % body_col) if isinstance(body_col, tuple) else body_col} clothes_col:{('#%02x%02x%02x' % clothes_col) if isinstance(clothes_col, tuple) else clothes_col} hat_col:{('#%02x%02x%02x' % hat_col) if isinstance(hat_col, tuple) else hat_col}`{extra_text}", file=file)
 
 @tree.command(guild=TEST_GUILD, name="random_dog", description="Make a random dog!")
-async def random_dog(interaction: discord.Interaction, use_palettes: bool=True, limit_to_one_palette: bool=False):
+@app_commands.describe(use_palettes="Only use colours from the game.", limit_to_one_palette="Choose one palette from the game and use colours from it.", add_hat2="Add a random hat2")
+async def random_dog(interaction: discord.Interaction, use_palettes: bool=True, limit_to_one_palette: bool=False, add_hat2: bool=False):
     chosen = None
     if use_palettes:
         if limit_to_one_palette:
@@ -239,7 +252,7 @@ async def random_dog(interaction: discord.Interaction, use_palettes: bool=True, 
         random.choice([i.name[:-4] for i in Path("sprites/Dog_body/1/").iterdir()]),
         random.choice([i.name[:-4] for i in Path("sprites/Dog_hat/1/Hat/").iterdir()] + extraHats + ["None"]),
         random.choice([i.name[:-4] for i in Path("sprites/Dog_hat/1/Hair/").iterdir()]),
-        "None",
+        "None" if not add_hat2 else random.choice([i.name[:-4] for i in Path("sprites/Dog_hat/1/Hat/").iterdir()] + extraHats + ["None"]),
         colone,
         coltwo,
         colthree,
@@ -290,37 +303,45 @@ async def hair_autocomplete(interaction: discord.Interaction, current:str):
 
 @tree.command(guild=TEST_GUILD, description="Show a sprite.")
 async def sprite(interaction: discord.Interaction, sprite: str, animated: bool=False):
-    await interaction.response.defer()
+    if animated and not imagemagick:
+        await interaction.response.send_message(content="Animated sprites are unavailable, making non animated version.")
+        animated = False
+    else:
+        await interaction.response.defer()
     if sprite.lower() == "random":
         sprite = random.choice([i.name for i in Path("sprites/").iterdir()])
     ims = []
     spriteDir = Path(f"sprites/{sprite}/")
-    layers = [i.name for i in spriteDir.iterdir()]
+    layers = [i for i in spriteDir.iterdir()]
+    if sprite.endswith("_A"):
+        layers += [i/"1" for i in Path("sprites/").glob("_".join(sprite.split("_")[:-1])+"_*") if i != spriteDir]
     i = 0
-    for filePath in (spriteDir / layers[0]).iterdir():
+    for filePath in layers[0].iterdir():
         im = Image.open(filePath).convert("RGBA")
         for layer in layers[1:]:
-            if (spriteDir / layer / filePath.name).exists():
-                im2 = Image.open(spriteDir / layer / filePath.name).convert("RGBA")
+            name = filePath.name
+            if (layer / name).exists():
+                im2 = Image.open(layer / name).convert("RGBA")
                 im.alpha_composite(im2)
         ims.append(im)
         if not animated:
             break
     if animated:
-        location = None
-        # ims[0].save(imbyte, "GIF", save_all=True, disposal=2, optimize=True, interlace=False, loop=0, append_images=ims[1:])
-        temp = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
-        temp.close()
-
-        ImageSequenceClip([numpy.array(im) for im in ims], fps=12).on_color(color=(0, 255, 0)).write_videofile(temp.name)
-
-        file = discord.File(temp.name, f"{sprite}.mp4")
+        name = tempfile.mkdtemp()
+        name = Path(name)
+        for i, im in enumerate(ims):
+            im.save(name / f"{i:02}.png")
+        process = subprocess.Popen(f"{imagemagick} -delay 10 -loop 0 -dispose Background {name / '*.png'} {name / 'out.gif'}",shell=True)
+        if process.wait() != 0:
+            await interaction.followup.send(content="<:Pizza_Depressaroli:967482279670718474> Something went wrong (gif conversion error).")
+            return
+        file = discord.File(name / "out.gif", f"{sprite}.gif")
         await interaction.followup.send(content=f"{sprite}:", file=file)
+        del file
         try:
-            Path(temp.name).unlink()
-            print(f"{temp.name} deleted.")
+            shutil.rmtree(name)
         except PermissionError:
-            pass
+            print("Failed to delete file.")
     else:
         imbyte = BytesIO()
         ims[0].save(imbyte, "PNG")
@@ -337,10 +358,11 @@ async def sprite(interaction: discord.Interaction, sprite: str, animated: bool=F
 
 @sprite.autocomplete("sprite")
 async def sprite_autocomplete(interaction: discord.Interaction, current: str):
-    return [
-        app_commands.Choice(name=i.name, value=i.name)
-        for i in Path("sprites/").iterdir() if current.lower() in i.name.lower()
-    ][:25]
+    lst = [
+        i.name
+        for i in Path("sprites/").iterdir()
+    ] + ["Random"]
+    return [app_commands.Choice(name=i, value=i) for i in lst if current.lower() in i.lower()][:25]
 
 @dog.error
 @random_dog.error

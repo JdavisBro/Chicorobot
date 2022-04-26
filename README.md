@@ -14,6 +14,10 @@ Move an Export_Sprites (with bounds) into this dir
 
 `py sort_export.py`
 
+Install [image magick](https://imagemagick.org/script/download.php)
+
+(put into imagemagick dir if you want portable)
+
 `py -m pip install -r requirements.txt`
 
 Modify bot.py and where it says

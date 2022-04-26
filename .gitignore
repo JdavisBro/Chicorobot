@@ -6,6 +6,7 @@ sprites/
 Export_Sprites/
 TOKEN.txt
 update.sh
+imagemagick
 
 # for now
 fonts
