@@ -1,12 +1,12 @@
-import sys
-import random
 import json
-import tempfile
-import subprocess
+import random
+import sys
 import shutil
+import tempfile
 from io import BytesIO
 from pathlib import Path
 
+import asyncio
 import discord
 from discord import app_commands
 from PIL import Image, ImageChops#, ImageDraw, ImageFont
@@ -333,9 +333,15 @@ async def sprite(interaction: discord.Interaction, sprite: str, animated: bool=F
         for i, im in enumerate(ims):
             im.save(name / f"{i:02}.png")
         await msg.edit(content="Converting to gif.")
-        process = subprocess.Popen(f"{imagemagick} -delay 10 -loop 0 -dispose Background {name / '*.png'} {name / 'out.gif'}",shell=True)
-        if process.wait() != 0:
+        process = await asyncio.create_subprocess_shell(
+            f"{imagemagick} -delay 10 -loop 0 -dispose Background {name / '*.png'} {name / 'out.gif'}",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        await process.communicate()
+        if process.returncode != 0:
             await msg.edit(content="<:Pizza_Depressaroli:967482279670718474> Something went wrong (gif conversion error).")
+            print(f"GIF CONVERSION ERROR: {process.stderr}")
             return
         file = discord.File(name / "out.gif", f"{sprite}.gif")
         await msg.edit(content=f"{sprite}:", attachments=[file])
