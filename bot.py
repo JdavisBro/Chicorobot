@@ -10,8 +10,7 @@ import asyncio
 import discord
 from discord import app_commands
 from PIL import Image, ImageChops#, ImageDraw, ImageFont
-#from moviepy.editor import ImageSequenceClip
-#import numpy
+import numpy
 
 with Path("TOKEN.txt").open("r") as f:
     TOKEN = f.readline().rstrip()
@@ -104,6 +103,18 @@ async def on_ready():
     await tree.sync(guild=TEST_GUILD)
     
     print("LOGGED IN!")
+
+@tree.error
+async def command_error(interaction: discord.Interaction, error):
+    error = getattr(error, "original", error)
+    if isinstance(error, app_commands.CheckFailure):
+        await interaction.response.send_message("<:Pizza_Angry:967482622194372650> You're not allowed to do that.", ephemeral=True)
+        return
+    if not interaction.response.is_done():
+        await interaction.response.send_message("<:Pizza_Depressaroli:967482279670718474> Something went wrong.")
+    else:
+        await interaction.followup.send("<:Pizza_Depressaroli:967482279670718474> Something went wrong.")
+    raise error
 
 def clamp(value, min, max):
     return min if value <= min else max if value >= max else value
@@ -302,69 +313,122 @@ async def hair_autocomplete(interaction: discord.Interaction, current:str):
 
 
 @tree.command(guild=TEST_GUILD, description="Show a sprite.")
-async def sprite(interaction: discord.Interaction, sprite: str, animated: bool=False):
+@app_commands.describe(sprite="The sprite to show", animated="If True, sends an animated gif", animation_fps="If animated. Sets the FPS of the animation", crop_transparency="Removes any blank area around the image", use_frame="If not animated, choose a frame of the sprite to send (starts at 1)")
+async def sprite(interaction: discord.Interaction, sprite: str, animated: bool=False, animation_fps: int=10, crop_transparency: bool=True, use_frame: str=None):
+    sprite = to_titlecase(sprite.replace(" ","_"))
+
+    try:
+        animation_fps = round(animation_fps)
+        if animation_fps < 1:
+            animation_fps = 1
+    except ValueError:
+        await interaction.response.send_message("FPS incorrect.")
+        return
+
     if animated and not imagemagick:
         await interaction.response.send_message(content="Animated sprites are unavailable, making non animated version.")
         animated = False
-    else:
-        await interaction.response.defer()
+    
+    await interaction.response.defer()
+    
     if sprite.lower() == "random":
         sprite = random.choice([i.name for i in Path("sprites/").iterdir()])
-    ims = []
+    
+    ims = None
     spriteDir = Path(f"sprites/{sprite}/")
+    
     layers = sorted([i for i in spriteDir.iterdir()], key=lambda item: item.stem)
+    
     if sprite.endswith("_A"):
         layers += [i/"1" for i in Path("sprites/").glob("_".join(sprite.split("_")[:-1])+"_*") if i != spriteDir]
+    
     i = 0
-    for filePath in sorted(layers[0].iterdir(), key=lambda path: path.stem):
+    if animated:
+        temp = tempfile.mkdtemp()
+        temp = Path(temp)
+        print(f"Making temp: {str(temp)}")
+    
+    msg = await interaction.followup.send(content="Making Image" + ("s and saving to PNG (1/2)" if animated else ""))
+
+    crop = None
+
+    zero_use_frame = None
+    if use_frame:
+        try:
+            zero_use_frame = f"{int(use_frame)-1:02}"
+        except ValueError:
+            pass
+        files = list(layers[0].glob(f"{zero_use_frame}.png"))
+        if not files:
+            await msg.edit("Invalid frame. Use `/frames` to check available frames!")
+            return
+    else:
+        files = sorted(layers[0].iterdir(), key=lambda path: path.stem)
+
+    for filePath in files:
         im = Image.open(filePath).convert("RGBA")
         for layer in layers[1:]:
             name = filePath.name
             if (layer / name).exists():
                 im2 = Image.open(layer / name).convert("RGBA")
                 im.alpha_composite(im2)
-        ims.append(im)
-        if not animated:
-            break
+        if crop_transparency:
+            imnp = numpy.array(im)
+            imnp = numpy.where(imnp[:, :, 3] > 0)
+            try:
+                if not crop:
+                    crop  = [imnp[1].min(), imnp[0].min(), imnp[1].max(), imnp[0].max()]
+                else:
+                    crop[0] = min(crop[0], imnp[1].min())
+                    crop[1] = min(crop[1], imnp[0].min())
+                    crop[2] = max(crop[2], imnp[1].max())
+                    crop[3] = max(crop[3], imnp[0].max())
+            except ValueError:
+                pass # Blank Image
+        if animated:
+            im.save(temp / f"{i:02}.png")
+            i += 1
+        else:
+            if crop_transparency and crop:
+                ims = im.crop(box=crop)
+            else:
+                ims = im
+
     if animated:
-        name = tempfile.mkdtemp()
-        name = Path(name)
-        print(f"Making temp: {str(name)}")
-        msg = await interaction.followup.send(content="Saving PNGs.")
-        for i, im in enumerate(ims):
-            im.save(name / f"{i:02}.png")
-        await msg.edit(content="Converting to gif.")
+        await msg.edit(content="Converting PNGs to GIF (2/2)")
+        addcrop = f"-crop {crop[2]-crop[0]}x{crop[3]-crop[1]}+{crop[0]}+{crop[1]} +repage " if crop_transparency else ""
+        print(crop, addcrop)
         process = await asyncio.create_subprocess_shell(
-            f"{imagemagick} -delay 10 -loop 0 -dispose Background {name / '*.png'} {name / 'out.gif'}",
+            f"{imagemagick} -delay 1x{animation_fps} -loop 0 -dispose Background {addcrop}{temp / '*.png'} {temp / 'out.gif'}",
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE
         )
         await process.communicate()
-        if process.returncode != 0:
+        if process.returncode != 0: # Error
             await msg.edit(content="<:Pizza_Depressaroli:967482279670718474> Something went wrong (gif conversion error).")
             print(f"GIF CONVERSION ERROR: {process.stderr}")
             try:
-                shutil.rmtree(name)
+                shutil.rmtree(temp)
             except PermissionError:
                 print("Failed to delete file.")
             else:
-                print(f"Deleted temp: {str(name)}")
+                print(f"Deleted temp: {str(temp)}")
             return
-        file = discord.File(name / "out.gif", f"{sprite}.gif")
-        await msg.edit(content=f"{sprite}:", attachments=[file])
-        del file
+        file = discord.File(temp / "out.gif", f"{sprite}.gif")
+        await msg.edit(content=f"{sprite} at {animation_fps} fps:", attachments=[file])
+        del file # Release out.gif
         try:
-            shutil.rmtree(name)
+            shutil.rmtree(temp)
         except PermissionError:
             print("Failed to delete file.")
         else:
-            print(f"Deleted temp: {str(name)}")
+            print(f"Deleted temp: {str(temp)}")
     else:
         imbyte = BytesIO()
-        ims[0].save(imbyte, "PNG")
+        ims.save(imbyte, "PNG")
         imbyte.seek(0)
         file = discord.File(imbyte, f"{sprite}..png")
-        await interaction.followup.send(content=f"{sprite}:", file=file)
+        await msg.edit(content=f"{sprite}{(' frame ' + use_frame) if use_frame else ''}:", attachments=[file])
 
 # @say.autocomplete("font")
 # async def font_autocomplete(interaction: discord.Interaction, current: str):
@@ -373,7 +437,32 @@ async def sprite(interaction: discord.Interaction, sprite: str, animated: bool=F
 #         for i in ["g","gg"] if current.lower() in i 
 #     ]
 
+@tree.command(guild=TEST_GUILD, description="Lists frames for a specific sprite")
+async def frames(interaction: discord.Interaction, sprite: str):
+    if not (Path(f"sprites/") / sprite).exists():
+        await interaction.response.send_message(content="Incorrect Sprite")
+        return
+    spriteDir = Path(f"sprites/") / sprite / "1"    
+    layers = sorted([i for i in spriteDir.iterdir()], key=lambda item: item.stem)
+    files = sorted(spriteDir.iterdir(), key=lambda path: path.stem)
+    numbers = []
+    strings = []
+    for file in files:
+        try:
+            numbers.append(int(file.stem))
+        except ValueError:
+            strings.append(file.stem)
+    out = ""
+    if numbers:
+        out += f"Frames {min(numbers)+1} to {max(numbers)+1}\n"
+    if strings:
+        out += f"Frames: `{'`, `'.join(strings)}`"
+    if not out:
+        out = "None"
+    await interaction.response.send_message(content=out)
+
 @sprite.autocomplete("sprite")
+@frames.autocomplete("sprite")
 async def sprite_autocomplete(interaction: discord.Interaction, current: str):
     lst = sorted([
         i.name
@@ -381,15 +470,6 @@ async def sprite_autocomplete(interaction: discord.Interaction, current: str):
     ] + ["Random"])
     return [app_commands.Choice(name=i, value=i) for i in lst if current.lower() in i.lower()][:25]
 
-@dog.error
-@random_dog.error
-@sprite.error
-async def dog_error(interaction: discord.Interaction, error):
-    if not interaction.response.is_done():
-        await interaction.response.send_message("<:Pizza_Depressaroli:967482279670718474> Something went wrong.")
-    else:
-        await interaction.followup.send("<:Pizza_Depressaroli:967482279670718474> Something went wrong.")
-    raise getattr(error,"original",error)
 
 @tree.command(guild=TEST_GUILD, description="Get a palette from the game!")
 async def palette(interaction: discord.Interaction, palette: str="Random"):
@@ -424,5 +504,16 @@ async def palette_autocomplete(interaction: discord.Interaction, current: str):
 @tree.command(guild=TEST_GUILD, description="Send a picture of hair to number.")
 async def hair(interaction: discord.Interaction):
     await interaction.response.send_message(content="https://cdn.discordapp.com/attachments/947900270992556033/967877113099219004/unknown.png", ephemeral=True)
+
+def is_me():
+    def predicate(interaction: discord.Interaction) -> bool:
+        return interaction.user.id == 105725338541101056
+    return app_commands.check(predicate)
+
+@tree.command(guild=TEST_GUILD, description="Death.")
+@is_me()
+async def die(interaction: discord.Interaction):
+    await interaction.response.send_message(content="I hath been slayn.")
+    await client.close()
 
 client.run(TOKEN)
