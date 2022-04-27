@@ -2,8 +2,8 @@
 .env
 venv
 
-sprites/
 Export_Sprites/
+sprites.json
 TOKEN.txt
 update.sh
 imagemagick

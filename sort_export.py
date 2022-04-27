@@ -1,3 +1,4 @@
+import json
 import shutil
 from pathlib import Path
 
@@ -63,14 +64,14 @@ blackTeeDuplicates = [
 ]
 
 dogClothes2 = [ # 0, 1 = hat colour, 1 = Under head above arm, 2 = Fit colour and above head
-    "_IDK", # no clue
+    "IDK_2", # no clue
     "Kerchief_1", # 1, hat
     "Scarf_1", # 1, hat
     "Cord Coat_2", # 2, fit
     "Wielder Cloak_1", # 1, hat
     "Bard_2", # 2, fit
     "Fuzzy Jacket_2", #2, fit
-    "_Headphones",
+    "Neck_Headphones_1",
     "Sailor_1", # 1, hat
     "Shawl_1", # 1, hat
     "Spike_1", # 1, hat
@@ -205,50 +206,104 @@ dogExpressions = [
     "closed sad"
 ]
 
+decoDict = {} # Coming soon
+
+spritesDict = {}
+
 def main():
     spritesDir = Path("Export_Sprites/")
-    newDir = Path("sprites/")
-    if newDir.exists():
-        shutil.rmtree(str(newDir))
-    newDir.mkdir()
-    for impath in spritesDir.glob("spr*.png"):
-        name = impath.stem.split("_")
-        sprite = ""
-        layer = 1
-        frame = 0
-        for i, v in enumerate(name):
-            if i == 0:
-                sprite += v[3:]
-            else:
-                if v.startswith("layer"):
-                    layer = int(v.replace("layer",""))
+    for impath in sorted(spritesDir.iterdir(), key=lambda f: f"{f.stem.split('_')[:-2]}{int(f.stem.split('_')[-1]):02}" ):
+        if not impath.name.endswith(".png"):
+            continue
+        if impath.stem.startswith("spr") and not impath.stem.startswith("sprite"):
+            add_sprite(impath)
+        else:
+            add_deco(impath)
+    with open("sprites.json", "w+") as f:
+        json.dump(spritesDict, f)
+
+def add_deco(path):
+    pass
+
+def add_sprite(path):
+    name = path.stem[3:].split("_")
+    sprite = ""
+    layer = 1
+    layer_text = False
+    layer_anim = None
+    frame = 0
+    for i, v in enumerate(name):
+        if i == 0:
+            sprite += v
+        else:
+
+            if v.startswith("layer"):
+                layer = int(v.replace("layer",""))
+                layer_text = True
+                if (len(name) - i - 1) > 1: # More than 1 remaining thing
+                    layer_anim = "_".join(name[i+1:-1])
                     break
+            else:
                 try: # Layer 0, Frame Number
                     int(v)
                 except ValueError:
-                    pass
+                    sprite += "_" + v
                 else:
-                    break
-                sprite += "_" + v
-        frame = int(name[-1])
-        newimpath = newDir / sprite / str(layer)
-        if sprite == "Dog_body":
-            if dogClothes[frame] == "Black Tee":
-                for name in blackTeeDuplicates:
-                    newimpath.mkdir(parents=True, exist_ok=True)
-                    shutil.copy(impath, newimpath / f"{name}.png")
-            newimpath = newimpath / f"{dogClothes[frame]}.png"
-        elif sprite == "Dog_body2":
-            newimpath = newimpath / f"{dogClothes2[frame]}.png"
-        elif sprite == "Dog_hat":
-            newimpath = newimpath / f"{dogHat[frame]}.png"
-        elif sprite == "Dog_expression":
-            newimpath = newimpath / f"{dogExpressions[frame]}.png"
+                    if i+1 != len(name): # If this isn't the last one this is a layer
+                        layer = int(v)
+                        layer_anim = "_".join(name[i+1:-1])
+                        if sprite == "Logo":
+                            print(layer_anim)
+                        break
+
+    frame = int(name[-1])
+
+    if sprite == "Logo" and layer == 2:
+        frame += 8
+
+    if sprite == "Dog_hat":
+        if dogHat[frame].split("/")[0] == "Hair":
+            sprite = "Dog_hair"
+
+    if sprite not in spritesDict:
+        spritesDict[sprite] = {}
+
+    if layer not in spritesDict[sprite]:
+        spritesDict[sprite][layer] = {}
+        if layer != 1:
+            spritesDict[sprite][layer]["root"] = f"spr{sprite}_{'layer' if layer_text else ''}{layer}_"
         else:
-            newimpath = newimpath / f"{frame:02}.png"
-        newimpath.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy(impath , newimpath)
-        print(str(newimpath))
+            spritesDict[sprite][layer]["root"] = f"spr{sprite}_"
+        if sprite in ["Dog_body", "Dog_body2", "Dog_hat", "Dog_hair", "Dog_expression"]:
+            spritesDict[sprite][layer]["named_frames"] = {}
+            spritesDict[sprite][layer]["frames"] = None
+        else:
+            spritesDict[sprite][layer]["frames"] = []
+
+    if sprite == "Dog_body":
+        if dogClothes[frame] == "Black Tee":
+            for name in blackTeeDuplicates:
+                spritesDict[sprite][layer]["named_frames"][name] = frame
+        spritesDict[sprite][layer]["named_frames"][dogClothes[frame]] = frame
+    elif sprite == "Dog_body2":
+        spritesDict[sprite][layer]["named_frames"][dogClothes2[frame]] = frame
+    elif sprite == "Dog_hat":
+        spritesDict[sprite][layer]["named_frames"][dogHat[frame].split("/")[1]] = frame
+    elif sprite == "Dog_hair":
+        spritesDict[sprite][layer]["named_frames"][int(dogHat[frame].split("/")[1])] = frame
+        spritesDict[sprite][layer]["root"] = f"sprDog_hat_"
+    elif sprite == "Dog_expression":
+        spritesDict[sprite][layer]["named_frames"][dogExpressions[frame]] = frame
+    elif layer_anim:
+        if "anim_root" not in spritesDict[sprite][layer]:
+            spritesDict[sprite][layer]["anim_root"] = {}
+        spritesDict[sprite][layer]["anim_root"][layer_anim] = f"{layer_anim}_"
+    else: 
+        spritesDict[sprite][layer]["frames"].append(frame)
+
+    if sprite == "Logo" and layer == 2 and not layer_anim:
+        spritesDict[sprite][layer]["anim_root"]["en"] = ""
+        spritesDict[sprite][layer]["offset"] = 8
 
 if __name__ == "__main__":
     main()
