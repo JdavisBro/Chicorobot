@@ -113,7 +113,7 @@ async def on_ready():
     print("LOGGED IN!")
 
 @tree.error
-async def command_error(interaction: discord.Interaction, command, error):
+async def command_error(interaction: discord.Interaction, error):
     error = getattr(error, "original", error)
     if isinstance(error, app_commands.CheckFailure):
         await interaction.response.send_message("<:Pizza_Angry:967482622194372650> You're not allowed to do that.", ephemeral=True)
@@ -377,18 +377,27 @@ async def sprite(interaction: discord.Interaction,
 
     if use_frame:
         frames = sprite[layers[0]]["frames"] or sprite[layers[0]]["named_frames"]
-        f = use_frame if isinstance(use_frame, str) else use_frame-1
-        if f not in frames:
-            await msg.edit("Invalid frame. Use `/frames` to check available frames!")
-            return
-        frames = [frames[f]]
+        try:
+            f = int(use_frame) - 1
+            namestr = False
+        except ValueError:
+            namestr = True
+        if namestr:
+            if not f in frames:
+                await msg.edit("Invalid frame. Use `/frames` to check available frames!")
+                return
+            frames = [frames[f]]
+        else:
+            if f > max(frames):
+                await msg.edit("Invalid frame. Use `/frames` to check available frames!")
+                return
+            frames = [f]
     else:
         frames = sprite[layers[0]]["frames"] or sprite[layers[0]]["named_frames"].values()
 
 
     for frame in frames:
         filePath = Path(sprite[layers[0]]["root"] + f"{str(frame)}.png")
-        print(colour_1)
         im = await colour_image(Image.open(spr / filePath).convert("RGBA"), colour_1)
         for i in layers[1:]:
             if isinstance(i, dict):
