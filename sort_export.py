@@ -212,7 +212,7 @@ spritesDict = {}
 
 def main():
     spritesDir = Path("Export_Sprites/")
-    for impath in sorted(spritesDir.iterdir(), key=lambda f: f"{f.stem.split('_')[:-2]}{int(f.stem.split('_')[-1]):02}" ):
+    for impath in sorted(spritesDir.iterdir(), key=lambda f: f"{'_'.join(f.stem.split('_')[:-1])}_{int(f.stem.split('_')[-1]):03}" ):
         if not impath.name.endswith(".png"):
             continue
         if impath.stem.startswith("spr") and not impath.stem.startswith("sprite"):
@@ -252,8 +252,6 @@ def add_sprite(path):
                     if i+1 != len(name): # If this isn't the last one this is a layer
                         layer = int(v)
                         layer_anim = "_".join(name[i+1:-1])
-                        if sprite == "Logo":
-                            print(layer_anim)
                         break
 
     frame = int(name[-1])
@@ -302,8 +300,13 @@ def add_sprite(path):
         spritesDict[sprite][layer]["frames"].append(frame)
 
     if sprite == "Logo" and layer == 2 and not layer_anim:
+        if not "anim_root" in spritesDict[sprite][layer]:
+            spritesDict[sprite][layer]["anim_root"] = {}
         spritesDict[sprite][layer]["anim_root"]["en"] = ""
         spritesDict[sprite][layer]["offset"] = 8
+
+    if sprite == "Finalboss_finalform":
+        print(f"{'_'.join(path.stem.split('_')[:-1])}_{int(path.stem.split('_')[-1]):03}" )
 
 if __name__ == "__main__":
     main()

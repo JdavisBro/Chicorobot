@@ -103,6 +103,9 @@ extraHats = [
     "Scarf"
 ]
 
+class ColourError(Exception):
+    pass
+
 @client.event
 async def on_ready():
     await tree.sync(guild=TEST_GUILD)
@@ -110,11 +113,13 @@ async def on_ready():
     print("LOGGED IN!")
 
 @tree.error
-async def command_error(interaction: discord.Interaction, error):
+async def command_error(interaction: discord.Interaction, command, error):
     error = getattr(error, "original", error)
     if isinstance(error, app_commands.CheckFailure):
         await interaction.response.send_message("<:Pizza_Angry:967482622194372650> You're not allowed to do that.", ephemeral=True)
         return
+    elif isinstance(error, ColourError):
+        await interaction.followup.send("You inputted a colour wrong!")
     if not interaction.response.is_done():
         await interaction.response.send_message("<:Pizza_Depressaroli:967482279670718474> Something went wrong.")
     else:
@@ -137,7 +142,10 @@ async def colour_image(im: Image, colour):
         colour = colour.lstrip("#")
         if colour == "ffffff":
             return im
-        colour = tuple([int(colour[i:i+2], 16) for i in (0, 2, 4)] + [255])
+        try:
+            colour = tuple([int(colour[i:i+2], 16) for i in (0, 2, 4)] + [255])
+        except ValueError:
+            raise ColourError()
     else:
         colour = tuple(list(colour) + [255])
     return ImageChops.multiply( im, Image.new("RGBA", im.size, colour))
@@ -313,10 +321,19 @@ async def hair_autocomplete(interaction: discord.Interaction, current:str):
 
 
 @tree.command(guild=TEST_GUILD, description="Show a sprite.")
-@app_commands.describe(sprite="The sprite to show", animated="If True, sends an animated gif", animation_name="Name of the animation to use, get a list of them for a sprite using /animations.", animation_fps="If animated. Sets the FPS of the animation", crop_transparency="Removes any blank area around the image", use_frame="If not animated, choose a frame of the sprite to send (starts at 1)")
-async def sprite(interaction: discord.Interaction, sprite: str, animated: bool=False, animation_name: str=None, animation_fps: int=10, crop_transparency: bool=True, use_frame: str=None):
+@app_commands.describe(
+    sprite="The sprite to show", animated="If True, sends an animated gif", animation_name="Name of the animation to use, get a list of them for a sprite using /animations.", animation_fps="If animated. Sets the FPS of the animation",
+    crop_transparency="Removes any blank area around the image", use_frame="If not animated, choose a frame of the sprite to send (starts at 1)",
+)
+async def sprite(interaction: discord.Interaction,
+        sprite: str, animated: bool=False, animation_name: str=None, animation_fps: int=10,
+        crop_transparency: bool=True, use_frame: str=None,
+        colour_1: str="#ffffff", colour_2: str="#ffffff", colour_3: str=None
+    ):
     await interaction.response.defer(thinking=True)
     sprite = sprite.replace(" ","_")
+
+    colour_3 = colour_3 or colour_1
 
     try:
         animation_fps = round(animation_fps)
@@ -340,15 +357,15 @@ async def sprite(interaction: discord.Interaction, sprite: str, animated: bool=F
             await interaction.followup.send(content="Incorrect Sprite")
             return
     name = sprite
-    sprite = sprites[sprite]
+    sprite = sprites[name]
 
-    layers = [sprite[k] for k in sorted(sprite.keys())]
+    layers = [k for k in sorted(sprite.keys())]
     
     if name.endswith("_A"):
         sproot = "_".join(name.split("_")[:-1]) + "_"
         layers += [sprites[i]["1"] for i in [sproot+"B",sproot+"ear"]]
     
-    i = 0
+    frameN = 0
     if animated:
         temp = tempfile.mkdtemp()
         temp = Path(temp)
@@ -359,19 +376,25 @@ async def sprite(interaction: discord.Interaction, sprite: str, animated: bool=F
     crop = None
 
     if use_frame:
-        frames = layers[0]["frames"] or layers[0]["named_frames"]
+        frames = sprite[layers[0]]["frames"] or sprite[layers[0]]["named_frames"]
         f = use_frame if isinstance(use_frame, str) else use_frame-1
         if f not in frames:
             await msg.edit("Invalid frame. Use `/frames` to check available frames!")
             return
         frames = [frames[f]]
     else:
-        frames = layers[0]["frames"] or layers[0]["named_frames"].values()
+        frames = sprite[layers[0]]["frames"] or sprite[layers[0]]["named_frames"].values()
+
 
     for frame in frames:
-        filePath = Path(layers[0]["root"] + f"{str(frame)}.png")
-        im = Image.open(spr / filePath).convert("RGBA")
-        for layer in layers[1:]:
+        filePath = Path(sprite[layers[0]]["root"] + f"{str(frame)}.png")
+        print(colour_1)
+        im = await colour_image(Image.open(spr / filePath).convert("RGBA"), colour_1)
+        for i in layers[1:]:
+            if isinstance(i, dict):
+                layer = i
+            else:
+                layer = sprite[i]
             layer_frames = layer["frames"] or layer["named_frames"]
             if frame in layer_frames:
                 sproot = layer["root"]
@@ -385,7 +408,12 @@ async def sprite(interaction: discord.Interaction, sprite: str, animated: bool=F
                 im2n = numpy.where(im2n[:, :, 3] > 0)
                 if im2n[0].size == 0 and im2n[1].size == 0:
                     im2 = Image.open(spr / Path(layer["root"] + f"{str(f)}.png")).convert("RGBA")
-                im.alpha_composite(im2)
+                try:
+                    c3test = (int(i) >= 3)
+                except (ValueError, TypeError):
+                    pass
+                col = colour_2 if i == "2" else (colour_3 if c3test else "#ffffff") # Chicory_lagoon has layer four
+                im.alpha_composite(await colour_image(im2, col))
         if crop_transparency:
             imnp = numpy.array(im)
             imnp = numpy.where(imnp[:, :, 3] > 0)
@@ -400,8 +428,8 @@ async def sprite(interaction: discord.Interaction, sprite: str, animated: bool=F
             except ValueError:
                 pass # Blank Image
         if animated:
-            im.save(temp / f"{i:02}.png")
-            i += 1
+            im.save(temp / f"{frameN:03}.png")
+            frameN += 1
         else:
             if crop_transparency and crop:
                 ims = im.crop(box=crop)
