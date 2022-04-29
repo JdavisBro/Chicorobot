@@ -32,8 +32,8 @@ intents = discord.Intents.default()
 client = discord.Client(intents=intents)
 tree = app_commands.CommandTree(client)
 
-TEST_GUILD = discord.Object(473976215301128193) # msmg
-# TEST_GUILD = discord.Object(947898290735833128) # gay baby jail
+# TEST_GUILD = discord.Object(473976215301128193) # msmg
+TEST_GUILD = discord.Object(947898290735833128) # gay baby jail
 
 with Path("palettes.json").open("r") as f:
     palettes = json.load(f)
