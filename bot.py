@@ -13,7 +13,8 @@ from discord import app_commands
 from PIL import Image, ImageChops#, ImageDraw, ImageFont
 import numpy
 
-from sprites import sprites
+from sprites import sprites, Layer
+import errors
 
 with Path("TOKEN.txt").open("r") as f:
     TOKEN = f.readline().rstrip()
@@ -106,10 +107,6 @@ extraHats = [
     "Scarf"
 ]
 
-def lengthdir(length, angle):
-    radian_angle = math.radians(angle)
-    return (length * math.cos(radian_angle), length * math.sin(radian_angle))
-
 class ColourError(Exception):
     pass
 
@@ -125,19 +122,31 @@ async def command_error(interaction: discord.Interaction, error):
     if isinstance(error, app_commands.CheckFailure):
         await interaction.response.send_message("<:Pizza_Angry:967482622194372650> You're not allowed to do that.", ephemeral=True)
         return
+    
     elif isinstance(error, ColourError):
         await interaction.followup.send("You inputted a colour wrong!")
-    if not interaction.response.is_done():
-        await interaction.response.send_message("<:Pizza_Depressaroli:967482279670718474> Something went wrong.")
+
+    elif isinstance(error, errors.SpriteNotFound):
+        await interaction.followup.send(f"Sprite {error.sprite} could not be found.")
+    elif isinstance(error, errors.LayerNotFound):
+        await interaction.followup.send(f"Layer {error.layer} could not be found.")
+    elif isinstance(error, errors.FrameNotFound):
+        await interaction.followup.send(f"Frame {error.frame} could not be found.")
     else:
-        await interaction.followup.send("<:Pizza_Depressaroli:967482279670718474> Something went wrong.")
+        if not interaction.response.is_done():
+            await interaction.response.send_message("<:Pizza_Depressaroli:967482279670718474> Something went wrong.")
+        else:
+            await interaction.followup.send("<:Pizza_Depressaroli:967482279670718474> Something went wrong.")
     raise error
 
 def clamp(value, min, max):
     return min if value <= min else max if value >= max else value
 
 def to_titlecase(string):
-    return " ".join([word[0].upper() + word[1:].lower() for word in string.split(" ")])
+    if "-" in string:
+        return "-".join([word[0].upper() + word[1:].lower() for word in string.split("-")]) # Half-Moons
+    else:
+        return " ".join([word[0].upper() + word[1:].lower() for word in string.split(" ")])
 
 async def colour_image(im: Image, colour):
     if not isinstance(colour, tuple):
@@ -152,29 +161,13 @@ async def colour_image(im: Image, colour):
         colour = tuple(list(colour) + [255])
     return ImageChops.multiply( im, Image.new("RGBA", im.size, colour))
 
-async def load_animation(anim, letter, animation_file, resize):
-    if (spr / (anim[letter] + animation_file)).exists():
-        return Image.open(spr / (anim[letter] + animation_file)).resize(resize)
-    return Image.open(spr / ("sprDog_idle_" + letter + animation_file)).resize(resize)
-
-async def transform_image(im, transform, origin, scale):
-    im = im.rotate(-transform["ang"], center=origin) # rotation is the wrong way around in gamemaker. why?
-    im2 = Image.new("RGBA", im.size, (0,0,0,0))
-    x = lengthdir(transform["x"]*scale, -transform["ang"])
-    y = lengthdir(transform["y"]*scale, -transform["ang"])
-    im2.paste(im, box=(round(x[0] - y[1]), round(y[1] - x[0])))
-    return im2
-
 async def make_dog(interaction: discord.Interaction,
         expression: str, clothes: str, hat: str, hair: str="0", hat2: str="None",
         body_col: str="#ffffff", clothes_col: str="#ffffff", hat_col: str="#ffffff",
         custom_clothes: discord.Attachment=None, custom_hat: discord.Attachment=None,
-        extra_text: str="", animation: str="idle", animation_frame: int=0
+        extra_text: str=""
     ):
     await interaction.response.defer(thinking=True)
-
-    animation = dog_animations[animation]
-    animation_file = "_" + str(animation_frame) + ".png"
 
     clothes = to_titlecase(clothes)
     
@@ -185,18 +178,8 @@ async def make_dog(interaction: discord.Interaction,
 
     base_size = (750, 750)
 
-    div = 750 / base_size[0]
-    scale = 1
-    if animation:
-        scale = animation["bounce"] / 2
-        if scale <= 0:
-            scale = 1
-
-    body_pivot = (375//div, 599//div)
-    head_pivot = (225//div, 370//div)
-
     # -- Animation _B -- #
-    im = await colour_image(Image.open(spr / (animation["B"] + animation_file)).resize(base_size), body_col)
+    im = await colour_image(await sprites["Dog_idle_B"].layer.load_frame(0, resize=base_size), body_col)
 
     if clothes != "Custom":
         # -- Clothing -- #
@@ -204,7 +187,6 @@ async def make_dog(interaction: discord.Interaction,
             await interaction.followup.send(f"<:Pizza_OhGod:967483357388759070> `{clothes}` is not a clothing!")
             return
         im2 = await sprites.body.load_frame(clothes, resize=base_size) # Clothes
-        im2 = await transform_image(im2, animation["frames_body"][animation_frame], body_pivot, div)
         im2 = await colour_image(im2, clothes_col)
         im.alpha_composite(im2)
     else:
@@ -217,26 +199,23 @@ async def make_dog(interaction: discord.Interaction,
         im2 = Image.open(im2, formats=["PNG"])
         im3 = Image.new("RGBA", im.size, (0,0,0,0))
         im3.paste(im2,box=(220,433),mask=im2)
-        im3 = await transform_image(im3, animation["frames_body"][animation_frame], body_pivot, div)
         im3 = await colour_image(im3, clothes_col)
         im.alpha_composite(im3)
 
     # -- Clothing _0 -- #
     if sprites.body2.is_frame(clothes+"_0"):
         im2 = await sprites.body2.load_frame(clothes + "_0", resize=resize)
-        im2 = await transform_image(im2, animation["frames_body"][animation_frame], body_pivot, div)
         im2 = await colour_image(im2, hat_col)
         im.alpha_composite(im2)
 
     # -- Animation _A -- #
-    im2 = await load_animation(animation, "A", animation_file, base_size)
+    im2 = await colour_image(await sprites["Dog_idle_A"].layer.load_frame(0, resize=base_size), body_col)
     im2 = await colour_image(im2, body_col)
     im.alpha_composite(im2)
 
     # -- Clothing _1 -- #
     if sprites.body2.is_frame(clothes+"_1"):
         im2 = await sprites.body2.load_frame(clothes+"_1", resize=base_size)
-        im2 = await transform_image(im2, animation["frames_body"][animation_frame], body_pivot, div)
         im2 = await colour_image(im2, hat_col)
         im.alpha_composite(im2)
     
@@ -244,7 +223,6 @@ async def make_dog(interaction: discord.Interaction,
     for h in [hat,hat2]:
         if h in extraHats:
             im2 = sprites.body2.load_frame(h+"_2", resize=base_size)
-            im2 = await transform_image(im2, animation["frames_body"][animation_frame], body_pivot, div)
             im2 = await colour_image(im2, clothes_col)
             im.alpha_composite(im2)
 
@@ -253,14 +231,12 @@ async def make_dog(interaction: discord.Interaction,
         await interaction.followup.send(f"<:Pizza_OhGod:967483357388759070> `{expression}` is not an expression!")
         return
     im2 = await sprites.expression.load_frame(expression, resize=base_size)
-    im2 = await transform_image(im2, animation["frames_head"][animation_frame], head_pivot, div)
     im2 = await colour_image(im2, body_col)
     im.alpha_composite(im2)    
 
     # -- Clothing _2 -- #
     if sprites.body2.is_frame(clothes+"_2"):
         im2 = await sprites.body2.load_frame(clothes+"_2", resize=base_size)
-        im2 = await transform_image(im2, animation["frames_body"][animation_frame], body_pivot, div)
         im2 = await colour_image(im2, hat_col)
         im.alpha_composite(im2)
     
@@ -268,7 +244,6 @@ async def make_dog(interaction: discord.Interaction,
     for h in [hat,hat2]:
         if sprites.hat.is_frame(h+"_1"): # Behind hair part of hat (only used for horns)
             im2 = await colour_image(Image.open(get_location(sprites['Dog_hat']['1'], h+"_1")).resize(base_size), hat_col)
-            im2 = await transform_image(im2, animation["frames_head"][animation_frame], head_pivot, div)
             im.alpha_composite(im2)
 
     # -- Hair -- #
@@ -277,7 +252,6 @@ async def make_dog(interaction: discord.Interaction,
             await interaction.followup.send(f"<:Pizza_OhGod:967483357388759070> `{hair}` is not a hair!")
             return
         im2 = await sprites.hair.load_frame(hair, resize=base_size)
-        im2 = await transform_image(im2, animation["frames_head"][animation_frame], head_pivot, div)
         im2 = await colour_image(im2, body_col)
         im.alpha_composite(im2)
 
@@ -288,7 +262,6 @@ async def make_dog(interaction: discord.Interaction,
                 continue
             if h != "Custom":
                 im2 = await sprites.hat.load_frame(h, resize=base_size)
-                im2 = await transform_image(im2, animation["frames_head"][animation_frame], head_pivot, div)
                 im2 = await colour_image(im2, hat_col)
                 im.alpha_composite(im2)
             else:
@@ -300,11 +273,10 @@ async def make_dog(interaction: discord.Interaction,
                 im2 = Image.open(im2, formats=["PNG"])
                 im3 = Image.new("RGBA", im.size, (0,0,0,0))
                 im3.paste(im2,box=(129,45),mask=im2)
-                im3 = await transform_image(im3, animation["frames_head"][animation_frame], head_pivot, div)
                 im.alpha_composite(await colour_image(im3, hat_col))
 
     async def do_ear():
-        im2 = Image.open(spr / (animation["ear"] + animation_file)).resize(base_size) # Ear
+        im2 = await colour_image(await sprites["Dog_idle_ear"].layer.load_frame(0, resize=base_size), body_col)
         im.alpha_composite(await colour_image(im2, body_col))
 
     for h in [hat, hat2]:
@@ -359,10 +331,9 @@ async def random_dog(interaction: discord.Interaction, use_palettes: bool=True, 
 async def dog(interaction: discord.Interaction,
         expression: str, clothes: str, hat: str, hair: str="0", hat2: str="None",
         body_col: str="#ffffff", clothes_col: str="#ffffff", hat_col: str="#ffffff",
-        animated: bool=False, animation: str="idle", animation_frame: int=1,
         custom_clothes: discord.Attachment=None, custom_hat: discord.Attachment=None
     ):
-    await make_dog(interaction, expression, clothes, hat, hair, hat2, body_col, clothes_col, hat_col, custom_clothes, custom_hat, "", animation, animation_frame-1)
+    await make_dog(interaction, expression, clothes, hat, hair, hat2, body_col, clothes_col, hat_col, custom_clothes, custom_hat)
 
 @dog.autocomplete("clothes")
 async def clothes_autocomplete(interaction: discord.Interaction, current: str):
@@ -416,10 +387,10 @@ async def sprite(interaction: discord.Interaction,
         animated = False
     
     if sprite.lower() == "random":
-        sprite = random.choice(list(sprites.keys()))
+        sprite = random.choice(sprites.sprites())
     
     ims = None
-    if sprite not in sprites:
+    if sprite not in sprites.sprites():
         sprite = to_titlecase(sprite)
         if sprite not in sprites:
             await interaction.followup.send(content="Incorrect Sprite")
@@ -427,7 +398,7 @@ async def sprite(interaction: discord.Interaction,
     name = sprite
     sprite = sprites[name]
 
-    layers = [k for k in sorted(sprite.keys())]
+    layers = sprite.get_layers()
     
     if name.endswith("_A"):
         sproot = "_".join(name.split("_")[:-1]) + "_"
@@ -444,52 +415,45 @@ async def sprite(interaction: discord.Interaction,
     crop = None
 
     if use_frame:
-        frames = sprite[layers[0]]["frames"] or sprite[layers[0]]["named_frames"]
+        frames = sprite.layer.get_frames()
         try:
             f = int(use_frame) - 1
             namestr = False
         except ValueError:
             namestr = True
         if namestr:
-            if not f in frames:
+            if f not in frames:
                 await msg.edit("Invalid frame. Use `/frames` to check available frames!")
                 return
             frames = [frames[f]]
         else:
-            if f > max(frames):
+            if f >= len(frames):
                 await msg.edit("Invalid frame. Use `/frames` to check available frames!")
                 return
             frames = [f]
     else:
-        frames = sprite[layers[0]]["frames"] or sprite[layers[0]]["named_frames"].values()
+        frames = sprite.layer.get_frames()
 
 
     for frame in frames:
-        filePath = Path(sprite[layers[0]]["root"] + f"{str(frame)}.png")
+        filePath = Path(sprite.layer.root + f"{str(frame)}.png")
         im = await colour_image(Image.open(spr / filePath).convert("RGBA"), colour_1)
-        for i in layers[1:]:
-            if isinstance(i, dict):
+        for i in sorted(layers[1:]):
+            if isinstance(i, Layer):
                 layer = i
             else:
                 layer = sprite[i]
-            layer_frames = layer["frames"] or layer["named_frames"]
-            if frame in layer_frames:
-                sproot = layer["root"]
+            if frame in layer.get_frames():
+                sproot = layer.root
                 f = frame
-                if "anim_root" in layer and animation_name in layer["anim_root"]:
-                    sproot += layer["anim_root"][animation_name]
-                if "offset" in layer:
-                    f -= layer["offset"] 
-                im2 = Image.open(spr / Path(sproot + f"{str(f)}.png")).convert("RGBA")
+                if layer.offset:
+                    f -= layer.offset
+                im2 = await layer.load_frame(f, anim=animation_name)
                 im2n = numpy.array(im2)
                 im2n = numpy.where(im2n[:, :, 3] > 0)
                 if im2n[0].size == 0 and im2n[1].size == 0:
-                    im2 = Image.open(spr / Path(layer["root"] + f"{str(f)}.png")).convert("RGBA")
-                try:
-                    c3test = (int(i) >= 3)
-                except (ValueError, TypeError):
-                    pass
-                col = colour_2 if i == "2" else (colour_3 if c3test else "#ffffff") # Chicory_lagoon has layer four
+                    im2 = await layer.load_frame(f)
+                col = colour_2 if i == "2" else colour_3
                 im.alpha_composite(await colour_image(im2, col))
         if crop_transparency:
             imnp = numpy.array(im)
@@ -551,31 +515,28 @@ async def sprite(interaction: discord.Interaction,
 @tree.command(guild=TEST_GUILD, description="Lists animations for a specific sprite")
 async def animations(interaction: discord.Interaction, sprite: str):
     anims = []
-    for layer in sprites[sprite]:
-        if "anim_root" in sprites[sprite][layer]:
-            anims += list(sprites[sprite][layer]["anim_root"])
+    for layer in sprites[sprite].get_layers():
+        if sprites[sprite][layer].anim_root:
+            anims += list(sprites[sprite][layer].anim_root)
     await interaction.response.send_message(content=f"Anims: `{'`, `'.join(anims)}`")
 
 @animations.autocomplete("sprite")
 async def animations_sprite_autocomplete(interaction: discord.Interaction, current: str):
     lst = []
-    for sprite in sprites:
+    for sprite in sprites.sprites():
         if current.lower() not in sprite.lower():
             continue
-        if [layer for layer in sprites[sprite] if "anim_root" in sprites[sprite][layer]]:
+        if [layer for layer in sprites[sprite].get_layers() if sprites[sprite][layer].anim_root]:
             lst.append(sprite)
             continue
     return [app_commands.Choice(name=i, value=i) for i in lst]
 
 @tree.command(guild=TEST_GUILD, description="Lists frames for a specific sprite")
 async def frames(interaction: discord.Interaction, sprite: str):
-    if sprite not in sprites:
+    if sprite not in sprites.sprites():
         await interaction.response.send_message(content="Incorrect Sprite")
         return
-    if sprites[sprite]["1"]["frames"]:
-        frames = range(len(sprites[sprite]["1"]["frames"]))
-    else:
-        frames = sprites[sprite]["1"]["named_frames"]
+    frames = sprites[sprite].layer.get_frames()
     numbers = []
     strings = []
     for frame in frames:
@@ -595,9 +556,8 @@ async def frames(interaction: discord.Interaction, sprite: str):
 @sprite.autocomplete("sprite")
 @frames.autocomplete("sprite")
 async def sprite_autocomplete(interaction: discord.Interaction, current: str):
-    lst = sorted(list(sprites.keys()) + ["Random"])
+    lst = sorted(list(sprites.sprites()) + ["Random"])
     return [app_commands.Choice(name=i, value=i) for i in lst if current.lower() in i.lower()][:25]
-
 
 @tree.command(guild=TEST_GUILD, description="Get a palette from the game!")
 async def palette(interaction: discord.Interaction, palette: str="Random"):

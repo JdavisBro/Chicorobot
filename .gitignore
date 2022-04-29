@@ -1,6 +1,8 @@
 .venv
 .env
 venv
+*.pyc
+**/__pycache__
 
 Export_Sprites/
 sprites.json

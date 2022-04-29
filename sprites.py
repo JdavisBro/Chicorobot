@@ -26,7 +26,7 @@ class Sprites():
 
     def __getitem__(self, key):
         if key not in self._dict:
-            raise errors.SpriteNotFound()
+            raise errors.SpriteNotFound(key)
         return Sprite(self._dict[key])
 
     def sprites(self):
@@ -38,7 +38,7 @@ class Sprite():
 
     def __getitem__(self, key):
         if key not in self._dict:
-            raise errors.LayerNotFound()
+            raise errors.LayerNotFound(key)
         return Layer(self._dict[key])
 
     def get_layers(self):
@@ -66,6 +66,11 @@ class Layer():
         else:
             self.offset = None
 
+    def __lt__(self, other):
+        if isinstance(other, Layer):
+            return sorted([self.root, other.root])[0] == other.root
+        return False
+
     def get_frames(self):
         if self.frames:
             return list(range(len(self.frames)))
@@ -87,25 +92,32 @@ class Layer():
         root = self.root
         if self.anim_root and anim:
             if anim in self.anim_root:
-                root += self.anim_root
+                root += self.anim_root[anim]
         if self.frames:
             try:
                 frame = int(frame)
             except ValueError:
-                raise errors.FrameNotFound() 
+                raise errors.FrameNotFound(frame) 
             if frame >= len(self.frames):
-                raise errors.LayerNotFound()
-            return root + self.frames[frame]
+                raise errors.FrameNotFound(frame)
+            return root + str(frame)
         else:
             if frame not in self.named_frames:
-                raise errors.LayerNotFound()
+                raise errors.FrameNotFound(frame)
             return root + str(self.named_frames[frame])
 
     def get_frame_path(self, frame, anim=None):
         return spr / (self.get_frame(frame, anim) + ".png")
 
     async def load_frame(self, frame, anim=None, resize: tuple=False):
-        im = Image.open(self.get_frame_path(frame, anim))
+        path = self.get_frame_path(frame, anim)
+        if path.exists():
+            im = Image.open(path)
+        else:
+            try: # Chicory_lagoon_layer4_smile_9.png does not exist.
+                im = Image.open(self.get_frame_path(int(frame) - 1, anim))
+            except (FileNotFoundError, ValueError):
+                return Image.open(self.get_frame_path(frame))
         if resize:
             im = im.resize(resize)
         return im
