@@ -2,6 +2,7 @@ import json
 import random
 import sys
 import shutil
+import math
 import tempfile
 from io import BytesIO
 from pathlib import Path
@@ -11,6 +12,8 @@ import discord
 from discord import app_commands
 from PIL import Image, ImageChops#, ImageDraw, ImageFont
 import numpy
+
+from sprites import sprites
 
 with Path("TOKEN.txt").open("r") as f:
     TOKEN = f.readline().rstrip()
@@ -28,11 +31,14 @@ intents = discord.Intents.default()
 client = discord.Client(intents=intents)
 tree = app_commands.CommandTree(client)
 
-# TEST_GUILD = discord.Object(473976215301128193) # msmg
-TEST_GUILD = discord.Object(947898290735833128) # gay baby jail
+TEST_GUILD = discord.Object(473976215301128193) # msmg
+# TEST_GUILD = discord.Object(947898290735833128) # gay baby jail
 
 with Path("palettes.json").open("r") as f:
     palettes = json.load(f)
+
+with Path("dog_animations.json").open("r") as f:
+    dog_animations = json.load(f)
 
 all_colours = []
 for v in palettes.values():
@@ -40,9 +46,6 @@ for v in palettes.values():
 all_colours += [[242, 0, 131],[217, 199, 190]] # Pickle and dust!
 
 randomablePalettes = [i for i in palettes.keys() if i not in ["boss1", "boss2", "town_spooky", "town_spooky2", "town_postgame"]]
-
-with Path("sprites.json").open("r") as f:
-    sprites = json.load(f)
 
 spr = Path("Export_Sprites/")
 
@@ -103,6 +106,10 @@ extraHats = [
     "Scarf"
 ]
 
+def lengthdir(length, angle):
+    radian_angle = math.radians(angle)
+    return (length * math.cos(radian_angle), length * math.sin(radian_angle))
+
 class ColourError(Exception):
     pass
 
@@ -132,11 +139,6 @@ def clamp(value, min, max):
 def to_titlecase(string):
     return " ".join([word[0].upper() + word[1:].lower() for word in string.split(" ")])
 
-def get_location(layer, frame):
-    if isinstance(frame, str):
-        return spr / f"{layer['root']}{layer['named_frames'][frame]}.png"
-    return spr / f"{layer['root']}{layer['frames'][frame]}.png"
-
 async def colour_image(im: Image, colour):
     if not isinstance(colour, tuple):
         colour = colour.lstrip("#")
@@ -150,13 +152,29 @@ async def colour_image(im: Image, colour):
         colour = tuple(list(colour) + [255])
     return ImageChops.multiply( im, Image.new("RGBA", im.size, colour))
 
+async def load_animation(anim, letter, animation_file, resize):
+    if (spr / (anim[letter] + animation_file)).exists():
+        return Image.open(spr / (anim[letter] + animation_file)).resize(resize)
+    return Image.open(spr / ("sprDog_idle_" + letter + animation_file)).resize(resize)
+
+async def transform_image(im, transform, origin, scale):
+    im = im.rotate(-transform["ang"], center=origin) # rotation is the wrong way around in gamemaker. why?
+    im2 = Image.new("RGBA", im.size, (0,0,0,0))
+    x = lengthdir(transform["x"]*scale, -transform["ang"])
+    y = lengthdir(transform["y"]*scale, -transform["ang"])
+    im2.paste(im, box=(round(x[0] - y[1]), round(y[1] - x[0])))
+    return im2
+
 async def make_dog(interaction: discord.Interaction,
-        expression: str, clothes: str, hat: str, hair: str="00", hat2: str="None",
+        expression: str, clothes: str, hat: str, hair: str="0", hat2: str="None",
         body_col: str="#ffffff", clothes_col: str="#ffffff", hat_col: str="#ffffff",
         custom_clothes: discord.Attachment=None, custom_hat: discord.Attachment=None,
-        extra_text: str=""
+        extra_text: str="", animation: str="idle", animation_frame: int=0
     ):
     await interaction.response.defer(thinking=True)
+
+    animation = dog_animations[animation]
+    animation_file = "_" + str(animation_frame) + ".png"
 
     clothes = to_titlecase(clothes)
     
@@ -165,17 +183,32 @@ async def make_dog(interaction: discord.Interaction,
 
     expression = expression.lower()
 
-    idleFrame = 0
+    base_size = (750, 750)
 
-    im = await colour_image(Image.open(get_location(sprites['Dog_idle_B']['1'], idleFrame)).resize((750, 750)), body_col)
+    div = 750 / base_size[0]
+    scale = 1
+    if animation:
+        scale = animation["bounce"] / 2
+        if scale <= 0:
+            scale = 1
+
+    body_pivot = (375//div, 599//div)
+    head_pivot = (225//div, 370//div)
+
+    # -- Animation _B -- #
+    im = await colour_image(Image.open(spr / (animation["B"] + animation_file)).resize(base_size), body_col)
 
     if clothes != "Custom":
-        if not clothes in sprites["Dog_body"]["1"]["named_frames"]:
+        # -- Clothing -- #
+        if not sprites.body.is_frame(clothes):
             await interaction.followup.send(f"<:Pizza_OhGod:967483357388759070> `{clothes}` is not a clothing!")
             return
-        im2 = Image.open(get_location(sprites['Dog_body']['1'], clothes)).resize((750, 750)) # Clothes
-        im.alpha_composite(await colour_image(im2, clothes_col))
+        im2 = await sprites.body.load_frame(clothes, resize=base_size) # Clothes
+        im2 = await transform_image(im2, animation["frames_body"][animation_frame], body_pivot, div)
+        im2 = await colour_image(im2, clothes_col)
+        im.alpha_composite(im2)
     else:
+        # -- Custom Clothing -- #
         if not custom_clothes:
             await interaction.followup.send(content="<:Pizza_Cease:967483853910462536> You didn't supply custom clothes!")
             return
@@ -184,47 +217,80 @@ async def make_dog(interaction: discord.Interaction,
         im2 = Image.open(im2, formats=["PNG"])
         im3 = Image.new("RGBA", im.size, (0,0,0,0))
         im3.paste(im2,box=(220,433),mask=im2)
-        im.alpha_composite(await colour_image(im3, clothes_col))
+        im3 = await transform_image(im3, animation["frames_body"][animation_frame], body_pivot, div)
+        im3 = await colour_image(im3, clothes_col)
+        im.alpha_composite(im3)
 
-    if clothes+"_0" in sprites["Dog_body2"]["1"]["named_frames"]:
-        im.alpha_composite(await colour_image(Image.open(get_location(sprites['Dog_body2']['1'], clothes+"_0")), hat_col))
+    # -- Clothing _0 -- #
+    if sprites.body2.is_frame(clothes+"_0"):
+        im2 = await sprites.body2.load_frame(clothes + "_0", resize=resize)
+        im2 = await transform_image(im2, animation["frames_body"][animation_frame], body_pivot, div)
+        im2 = await colour_image(im2, hat_col)
+        im.alpha_composite(im2)
 
-    im2 = Image.open(get_location(sprites['Dog_idle_A']['1'], idleFrame)).resize((750, 750)) # Arm
-    im.alpha_composite(await colour_image(im2, body_col))
+    # -- Animation _A -- #
+    im2 = await load_animation(animation, "A", animation_file, base_size)
+    im2 = await colour_image(im2, body_col)
+    im.alpha_composite(im2)
 
-    if clothes+"_1" in sprites["Dog_body2"]["1"]["named_frames"]:
-        im.alpha_composite(await colour_image(Image.open(get_location(sprites['Dog_body2']['1'], clothes+"_1")), hat_col))
+    # -- Clothing _1 -- #
+    if sprites.body2.is_frame(clothes+"_1"):
+        im2 = await sprites.body2.load_frame(clothes+"_1", resize=base_size)
+        im2 = await transform_image(im2, animation["frames_body"][animation_frame], body_pivot, div)
+        im2 = await colour_image(im2, hat_col)
+        im.alpha_composite(im2)
     
+    # -- Neck Hats -- #
     for h in [hat,hat2]:
         if h in extraHats:
-            im.alpha_composite(await colour_image(Image.open(get_location(sprites['Dog_body2']['1'], h+"_1")), hat_col))
+            im2 = sprites.body2.load_frame(h+"_2", resize=base_size)
+            im2 = await transform_image(im2, animation["frames_body"][animation_frame], body_pivot, div)
+            im2 = await colour_image(im2, clothes_col)
+            im.alpha_composite(im2)
 
-    if not expression in sprites["Dog_expression"]["1"]["named_frames"]:
+    # -- Expression -- #
+    if not sprites.expression.is_frame(expression):
         await interaction.followup.send(f"<:Pizza_OhGod:967483357388759070> `{expression}` is not an expression!")
         return
-    im2 = Image.open(get_location(sprites["Dog_expression"]["1"], expression)).resize((750, 750)) # Face
-    im.alpha_composite(await colour_image(im2, body_col))    
+    im2 = await sprites.expression.load_frame(expression, resize=base_size)
+    im2 = await transform_image(im2, animation["frames_head"][animation_frame], head_pivot, div)
+    im2 = await colour_image(im2, body_col)
+    im.alpha_composite(im2)    
 
-    if clothes+"_2" in sprites["Dog_body2"]["1"]["named_frames"]:
-        im.alpha_composite( await colour_image( Image.open(get_location(sprites['Dog_body2']['1'], clothes+"_2")), clothes_col ) )
-
+    # -- Clothing _2 -- #
+    if sprites.body2.is_frame(clothes+"_2"):
+        im2 = await sprites.body2.load_frame(clothes+"_2", resize=base_size)
+        im2 = await transform_image(im2, animation["frames_body"][animation_frame], body_pivot, div)
+        im2 = await colour_image(im2, hat_col)
+        im.alpha_composite(im2)
+    
+    # -- Hats _1 -- #
     for h in [hat,hat2]:
-        if h+"_1" in sprites["Dog_hat"]["1"]["named_frames"]: # Behind hair part of hat (only used for horns)
-            im.alpha_composite( await colour_image( Image.open(get_location(sprites['Dog_hat']['1'], h+"_1")), hat_col ) )
+        if sprites.hat.is_frame(h+"_1"): # Behind hair part of hat (only used for horns)
+            im2 = await colour_image(Image.open(get_location(sprites['Dog_hat']['1'], h+"_1")).resize(base_size), hat_col)
+            im2 = await transform_image(im2, animation["frames_head"][animation_frame], head_pivot, div)
+            im.alpha_composite(im2)
 
-    if all([h in hairHats for h in [hat,hat2]]): # Hat shows hair
-        if not hair in sprites["Dog_hair"]["1"]["named_frames"]:
+    # -- Hair -- #
+    if all([h in hairHats for h in [hat,hat2]]): # Neither hat doesn't show hair
+        if not sprites.hair.is_frame(hair):
             await interaction.followup.send(f"<:Pizza_OhGod:967483357388759070> `{hair}` is not a hair!")
             return
-        im.alpha_composite( await colour_image(Image.open(get_location(sprites["Dog_hair"]["1"], hair)).resize((750, 750)), body_col ) )
+        im2 = await sprites.hair.load_frame(hair, resize=base_size)
+        im2 = await transform_image(im2, animation["frames_head"][animation_frame], head_pivot, div)
+        im2 = await colour_image(im2, body_col)
+        im.alpha_composite(im2)
 
+    # -- Hat -- #
     async def do_hat():
         for h in [hat, hat2]:
             if h == "None" or h in extraHats:
                 continue
             if h != "Custom":
-                im2 = Image.open(get_location(sprites["Dog_hat"]["1"], h)).resize((750, 750)) # Hat
-                im.alpha_composite( await colour_image(im2, hat_col))
+                im2 = await sprites.hat.load_frame(h, resize=base_size)
+                im2 = await transform_image(im2, animation["frames_head"][animation_frame], head_pivot, div)
+                im2 = await colour_image(im2, hat_col)
+                im.alpha_composite(im2)
             else:
                 if not custom_hat:
                     await interaction.followup.send(content="<:Pizza_Cease:967483853910462536> You didn't supply a custom hat!")
@@ -234,16 +300,17 @@ async def make_dog(interaction: discord.Interaction,
                 im2 = Image.open(im2, formats=["PNG"])
                 im3 = Image.new("RGBA", im.size, (0,0,0,0))
                 im3.paste(im2,box=(129,45),mask=im2)
+                im3 = await transform_image(im3, animation["frames_head"][animation_frame], head_pivot, div)
                 im.alpha_composite(await colour_image(im3, hat_col))
 
     async def do_ear():
-        im2 = Image.open(get_location(sprites["Dog_idle_ear"]["1"], idleFrame)).resize((750, 750)) # Ear
+        im2 = Image.open(spr / (animation["ear"] + animation_file)).resize(base_size) # Ear
         im.alpha_composite(await colour_image(im2, body_col))
 
     for h in [hat, hat2]:
         if h == "None" or h == "Custom" or h in extraHats:
             continue
-        if h not in sprites["Dog_hat"]["1"]["named_frames"]:
+        if not sprites.hat.is_frame(h):
             await interaction.followup.send(f"<:Pizza_OhGod:967483357388759070> `{h}` is not a hat!")
             return
 
@@ -277,11 +344,11 @@ async def random_dog(interaction: discord.Interaction, use_palettes: bool=True, 
         colthree = discord.Colour.random()
     await make_dog(
         interaction,
-        random.choice(list(sprites["Dog_expression"]["1"]["named_frames"].keys())),
-        random.choice(list(sprites["Dog_body"]["1"]["named_frames"].keys())),
-        random.choice([i for i in sprites["Dog_hat"]["1"]["named_frames"].keys() if i != "Horns_1"] + ["None"] + extraHats),
-        random.choice(list(sprites["Dog_hair"]["1"]["named_frames"].keys())),
-        "None" if not add_hat2 else random.choice(list(sprites["Dog_hat"]["1"]["named_frames"].keys()) + ["None"] + extraHats),
+        random.choice(sprites["Dog_expression"].layer.get_frames()),
+        random.choice(sprites["Dog_body"].layer.get_frames()),
+        random.choice([i for i in sprites["Dog_hat"].layer.get_frames() if i != "Horns_1"] + ["None"] + extraHats),
+        random.choice(sprites["Dog_hair"].layer.get_frames()),
+        "None" if not add_hat2 else random.choice(sprites["Dog_hat"].layer.get_frames() + ["None"] + extraHats),
         colone,
         coltwo,
         colthree,
@@ -290,33 +357,34 @@ async def random_dog(interaction: discord.Interaction, use_palettes: bool=True, 
 
 @tree.command(guild=TEST_GUILD, name="dog", description="Make a Dog!")
 async def dog(interaction: discord.Interaction,
-        expression: str, clothes: str, hat: str, hair: str="00", hat2: str="None",
+        expression: str, clothes: str, hat: str, hair: str="0", hat2: str="None",
         body_col: str="#ffffff", clothes_col: str="#ffffff", hat_col: str="#ffffff",
+        animated: bool=False, animation: str="idle", animation_frame: int=1,
         custom_clothes: discord.Attachment=None, custom_hat: discord.Attachment=None
     ):
-    await make_dog(interaction, expression, clothes, hat, hair, hat2, body_col, clothes_col, hat_col, custom_clothes, custom_hat)
+    await make_dog(interaction, expression, clothes, hat, hair, hat2, body_col, clothes_col, hat_col, custom_clothes, custom_hat, "", animation, animation_frame-1)
 
 @dog.autocomplete("clothes")
 async def clothes_autocomplete(interaction: discord.Interaction, current: str):
-    ls = sorted(list(sprites["Dog_body"]["1"]["named_frames"].keys()) + ["Custom"])
+    ls = sorted(sprites.body.get_frames() + ["Custom"])
     return [app_commands.Choice(name=i, value=i) for i in ls if current.lower() in i.lower()][:25]
 
 @dog.autocomplete("expression")
 async def expression_autocomplete(interaction: discord.Interaction, current: str):
-    ls = sorted(list(sprites["Dog_expression"]["1"]["named_frames"].keys()))
+    ls = sorted(sprites.expression.get_frames())
     return [app_commands.Choice(name=i, value=i) for i in ls if current.lower() in i.lower()][:25]
 
 @dog.autocomplete("hat")
 @dog.autocomplete("hat2")
 async def hat_autocomplete(interaction: discord.Interaction, current: str):
-    ls = sorted(list(sprites["Dog_hat"]["1"]["named_frames"].keys()) + ["None", "Custom"] + extraHats)
+    ls = sorted(sprites.hat.get_frames() + ["None", "Custom"] + extraHats)
     if "Horns_1" in ls:
         ls.remove("Horns_1")
     return [app_commands.Choice(name=i, value=i) for i in ls if current.lower() in i.lower()][:25]
 
 @dog.autocomplete("hair")
 async def hair_autocomplete(interaction: discord.Interaction, current:str):
-    ls = sorted(list(sprites["Dog_hair"]["1"]["named_frames"].keys()))
+    ls = sorted(sprites.hair.get_frames())
     return [app_commands.Choice(name=i, value=i) for i in ls if current.lower() in i.lower()][:25]
 
 

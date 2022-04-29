@@ -2,6 +2,10 @@
 
 A discord bot for things todo with Chicory: A Colorful Tale
 
+## Dog anims branch
+
+This branch is a work in progress of dog animations (they don't work at all currently)
+
 ## To Run
 
 Python (you'll need it)
