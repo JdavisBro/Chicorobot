@@ -363,7 +363,7 @@ async def hair_autocomplete(interaction: discord.Interaction, current:str):
 @tree.command(guild=TEST_GUILD, description="Show a sprite.")
 @app_commands.describe(
     sprite="The sprite to show", animated="If True, sends an animated gif", animation_name="Name of the animation to use, get a list of them for a sprite using /animations.", animation_fps="If animated. Sets the FPS of the animation",
-    crop_transparency="Removes any blank area around the image", use_frame="If not animated, choose a frame of the sprite to send (starts at 1)", output_zip="Outputs animation as a zip of PNGs for high quality."
+    crop_transparency="Removes any blank area around the image", use_frame="If not animated, choose a frame of the sprite to send (starts at 0)", output_zip="Outputs animation as a zip of PNGs for high quality."
 )
 async def sprite(interaction: discord.Interaction,
         sprite: str, animated: bool=False, animation_name: str=None, animation_fps: int=10,
@@ -419,7 +419,7 @@ async def sprite(interaction: discord.Interaction,
     if use_frame:
         frames = sprite.layer.get_frames()
         try:
-            f = int(use_frame) - 1
+            f = int(use_frame)
             namestr = False
         except ValueError:
             f = use_frame
@@ -506,7 +506,7 @@ async def sprite(interaction: discord.Interaction,
         f.seek(0)
         file = discord.File(f, f"{name}.zip")
         await msg.edit(content=f"{name}:", attachments=[file])
-
+        del_temp()
 
     elif animated:
         await msg.edit(content="Converting PNGs to GIF (2/2)")
@@ -525,13 +525,14 @@ async def sprite(interaction: discord.Interaction,
         file = discord.File(temp / "out.gif", f"{name}.gif")
         await msg.edit(content=f"{name} at {animation_fps} fps:", attachments=[file])
         del file # Release out.gif
+        del_temp()
+
     else:
         imbyte = BytesIO()
         ims.save(imbyte, "PNG")
         imbyte.seek(0)
         file = discord.File(imbyte, f"{name}..png")
         await msg.edit(content=f"{name} frame `{f}`:", attachments=[file])
-    del_temp()
 
 @tree.command(guild=TEST_GUILD, description="Lists animations for a specific sprite")
 async def animations(interaction: discord.Interaction, sprite: str):
