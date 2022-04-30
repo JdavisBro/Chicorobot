@@ -561,14 +561,14 @@ async def frames(interaction: discord.Interaction, sprite: str):
     frames = sprites[sprite].layer.get_frames()
     numbers = []
     strings = []
-    for frame in frames:
+    for frame in frames: # This is kinda stupid with numbered frames
         try:
             numbers.append(int(frame))
         except ValueError:
             strings.append(frame)
     out = ""
     if numbers:
-        out += f"Frames {min(numbers)+1} to {max(numbers)+1}\n"
+        out += f"Frames {min(numbers)} to {max(numbers)}\n"
     if strings:
         out += f"Frames: `{'`, `'.join(strings)}`"
     if not out:
