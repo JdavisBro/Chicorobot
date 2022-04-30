@@ -4,6 +4,7 @@ import sys
 import shutil
 import math
 import tempfile
+import zipfile
 from io import BytesIO
 from pathlib import Path
 
@@ -362,11 +363,11 @@ async def hair_autocomplete(interaction: discord.Interaction, current:str):
 @tree.command(guild=TEST_GUILD, description="Show a sprite.")
 @app_commands.describe(
     sprite="The sprite to show", animated="If True, sends an animated gif", animation_name="Name of the animation to use, get a list of them for a sprite using /animations.", animation_fps="If animated. Sets the FPS of the animation",
-    crop_transparency="Removes any blank area around the image", use_frame="If not animated, choose a frame of the sprite to send (starts at 1)",
+    crop_transparency="Removes any blank area around the image", use_frame="If not animated, choose a frame of the sprite to send (starts at 1)", output_zip="Outputs animation as a zip of PNGs for high quality."
 )
 async def sprite(interaction: discord.Interaction,
         sprite: str, animated: bool=False, animation_name: str=None, animation_fps: int=10,
-        crop_transparency: bool=True, use_frame: str=None,
+        crop_transparency: bool=True, use_frame: str=None, output_zip: bool=False,
         colour_1: str="#ffffff", colour_2: str="#ffffff", colour_3: str=None
     ):
     await interaction.response.defer(thinking=True)
@@ -414,18 +415,26 @@ async def sprite(interaction: discord.Interaction,
 
     crop = None
 
+    f = 0
     if use_frame:
         frames = sprite.layer.get_frames()
         try:
             f = int(use_frame) - 1
             namestr = False
         except ValueError:
+            f = use_frame
             namestr = True
+        if namestr and sprite.layer.frames: # The gave us a str but we only have numbered frames
+            await msg.edit("Invalid frame. Use `/frames` to check available frames!")
+            return
+        elif not namestr and not sprite.layer.frames: # They gave us a number but we only have string frames
+            await msg.edit("Invalid frame. Use `/frames` to check available frames!")
+            return
         if namestr:
-            if f not in frames:
+            if f not in sprite.layer.get_frames():
                 await msg.edit("Invalid frame. Use `/frames` to check available frames!")
                 return
-            frames = [frames[f]]
+            frames = [f]
         else:
             if f >= len(frames):
                 await msg.edit("Invalid frame. Use `/frames` to check available frames!")
@@ -436,8 +445,10 @@ async def sprite(interaction: discord.Interaction,
 
 
     for frame in frames:
+        f = frame
         filePath = Path(sprite.layer.root + f"{str(frame)}.png")
-        im = await colour_image(Image.open(spr / filePath).convert("RGBA"), colour_1)
+        im = await sprite.layer.load_frame(frame)
+        im = await colour_image(im, colour_1)
         for i in sorted(layers[1:]):
             if isinstance(i, Layer):
                 layer = i
@@ -476,8 +487,28 @@ async def sprite(interaction: discord.Interaction,
                 ims = im.crop(box=crop)
             else:
                 ims = im
+            break
 
-    if animated:
+    def del_temp():
+        try:
+            shutil.rmtree(temp)
+        except PermissionError:
+            print("Failed to delete file.")
+        else:
+            print(f"Deleted temp: {str(temp)}")
+
+    if animated and output_zip:
+        await msg.edit(content="Zipping PNGs (2/2)")
+        f = BytesIO()
+        with zipfile.ZipFile(f, "x") as zipf:
+            for i in temp.iterdir():
+                zipf.write(i, i.relative_to(temp))
+        f.seek(0)
+        file = discord.File(f, f"{name}.zip")
+        await msg.edit(content=f"{name}:", attachments=[file])
+
+
+    elif animated:
         await msg.edit(content="Converting PNGs to GIF (2/2)")
         addcrop = f"-crop {crop[2]-crop[0]}x{crop[3]-crop[1]}+{crop[0]}+{crop[1]} +repage " if crop_transparency else ""
         process = await asyncio.create_subprocess_shell(
@@ -488,29 +519,19 @@ async def sprite(interaction: discord.Interaction,
         await process.communicate()
         if process.returncode != 0: # Error
             await msg.edit(content="<:Pizza_Depressaroli:967482279670718474> Something went wrong (gif conversion error).")
-            print(f"GIF CONVERSION ERROR: {process.stderr}")
-            try:
-                shutil.rmtree(temp)
-            except PermissionError:
-                print("Failed to delete file.")
-            else:
-                print(f"Deleted temp: {str(temp)}")
+            print(f"GIF CONVERSION ERROR: {process.stderr.read()}")
+            del_temp()
             return
         file = discord.File(temp / "out.gif", f"{name}.gif")
         await msg.edit(content=f"{name} at {animation_fps} fps:", attachments=[file])
         del file # Release out.gif
-        try:
-            shutil.rmtree(temp)
-        except PermissionError:
-            print("Failed to delete file.")
-        else:
-            print(f"Deleted temp: {str(temp)}")
     else:
         imbyte = BytesIO()
         ims.save(imbyte, "PNG")
         imbyte.seek(0)
         file = discord.File(imbyte, f"{name}..png")
-        await msg.edit(content=f"{name}{(' frame ' + use_frame) if use_frame else ''}:", attachments=[file])
+        await msg.edit(content=f"{name} frame `{f}`:", attachments=[file])
+    del_temp()
 
 @tree.command(guild=TEST_GUILD, description="Lists animations for a specific sprite")
 async def animations(interaction: discord.Interaction, sprite: str):
