@@ -108,6 +108,42 @@ extraHats = [
     "Scarf"
 ]
 
+paletteAliases = {
+    "Luncheon": "town",
+    "Luncheon Spooky": "town_spooky",
+    "Luncheon Spooky 2": "town_spooky2",
+    "Luncheon Postgame": "town_postgame",
+    "Boss 1": "boss1",
+    "Boss 2": "boss2",
+    "Brekkie": "brekkie",
+    "Brekkie": "brekkie",
+    "Brunch Canyon": "brunch",
+    "Caves": "cave",
+    "Dinners": "dinners",
+    "Elevenses": "elevenses",
+    "Feast": "feast",
+    "Appie Foothills": "foothills",
+    "Supper Woods": "forest",
+    "Gray": "gray",
+    "Grub Caverns": "grub1",
+    "Grub Deep": "grub2",
+    "Spoons Island": "island",
+    "Teatime Meadows": "meadows",
+    "Dessert Mountain": "mtn",
+    "Newgame": "newgame",
+    "Nibble Tunnel": "nibble",
+    "Ocean": "ocean",
+    "Dessert Mountain Peak": "peak",
+    "Potluck": "potluck",
+    "Banquet Rainforest": "rainforest",
+    "Sips River": "river",
+    "Wielder Temple": "ruins",
+    "Wielder Temple Dark": "ruins_dark",
+    "Spooky": "spooky",
+    "Simmer Springs": "springs",
+    "Gulp Swamp": "swamp"
+}
+
 class ColourError(Exception):
     pass
 
@@ -582,7 +618,21 @@ async def sprite_autocomplete(interaction: discord.Interaction, current: str):
     return [app_commands.Choice(name=i, value=i) for i in lst if current.lower() in i.lower()][:25]
 
 @tree.command(guild=TEST_GUILD, description="Get a palette from the game!")
-async def palette(interaction: discord.Interaction, palette: str="Random"):
+@app_commands.describe(
+    area_name="Name of an area from the game. Not required if code_name specified.",
+    code_name="Name of a palette in the games code. Not required if area_name specified."
+)
+async def palette(interaction: discord.Interaction, area_name: str=None, code_name: str="Random"):
+    palette = code_name
+    if area_name:
+        area_name = to_titlecase(area_name)
+        if area_name in paletteAliases:
+            palette = paletteAliases[area_name]
+        elif area_name == "Random":
+            palette = "random"
+        else:
+            await interaction.response.send_message(f"Palette `{area_name}` not found.")
+            return
     p = None
     palette = palette.lower()
     if palette == "random":
@@ -605,8 +655,14 @@ async def palette(interaction: discord.Interaction, palette: str="Random"):
     file = discord.File(fp, filename="palette.png")
     await interaction.response.send_message(f"{palette}:\n`{'`, `'.join([('#%02x%02x%02x' % i) for i in p])}`", file=file)
 
-@palette.autocomplete("palette")
-async def palette_autocomplete(interaction: discord.Interaction, current: str):
+@palette.autocomplete("area_name")
+async def area_name_autocomplete(interaction: discord.Interaction, current: str):
+    return [app_commands.Choice(name=i, value=i) for i in sorted(
+        [i for i in paletteAliases.keys()] + ["Random"]
+    ) if current in i][:25]
+
+@palette.autocomplete("code_name")
+async def code_name_autocomplete(interaction: discord.Interaction, current: str):
     return [app_commands.Choice(name=i, value=i) for i in sorted(
         [i for i in palettes.keys()] + ["random"]
     ) if current in i][:25]
