@@ -210,7 +210,7 @@ async def make_dog(interaction: discord.Interaction,
         im.alpha_composite(im2)
 
     # -- Animation _A -- #
-    im2 = await colour_image(await sprites["Dog_idle_A"].layer.load_frame(0, resize=base_size), body_col)
+    im2 = await sprites["Dog_idle_A"].layer.load_frame(0, resize=base_size)
     im2 = await colour_image(im2, body_col)
     im.alpha_composite(im2)
 
@@ -277,7 +277,7 @@ async def make_dog(interaction: discord.Interaction,
                 im.alpha_composite(await colour_image(im3, hat_col))
 
     async def do_ear():
-        im2 = await colour_image(await sprites["Dog_idle_ear"].layer.load_frame(0, resize=base_size), body_col)
+        im2 = await sprites["Dog_idle_ear"].layer.load_frame(0, resize=base_size)
         im.alpha_composite(await colour_image(im2, body_col))
 
     for h in [hat, hat2]:
