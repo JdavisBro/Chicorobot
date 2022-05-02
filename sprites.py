@@ -25,6 +25,7 @@ class Sprites():
         self.expression = Layer(self._dict["Dog_expression"]["1"])
 
     def __getitem__(self, key):
+        print(key)
         if key not in self._dict:
             raise errors.SpriteNotFound(key)
         return Sprite(self._dict[key])

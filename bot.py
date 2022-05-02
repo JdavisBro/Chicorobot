@@ -36,6 +36,8 @@ tree = app_commands.CommandTree(client)
 # TEST_GUILD = discord.Object(473976215301128193) # msmg
 TEST_GUILD = discord.Object(947898290735833128) # gay baby jail
 
+ownerid = 105725338541101056
+
 with Path("palettes.json").open("r") as f:
     palettes = json.load(f)
 
@@ -164,11 +166,11 @@ async def command_error(interaction: discord.Interaction, error):
         await interaction.followup.send("You inputted a colour wrong!")
 
     elif isinstance(error, errors.SpriteNotFound):
-        await interaction.followup.send(f"Sprite {error.sprite} could not be found.")
+        await interaction.followup.send(f"Sprite `{error.sprite}` could not be found.")
     elif isinstance(error, errors.LayerNotFound):
-        await interaction.followup.send(f"Layer {error.layer} could not be found.")
+        await interaction.followup.send(f"Layer `{error.layer}` could not be found.")
     elif isinstance(error, errors.FrameNotFound):
-        await interaction.followup.send(f"Frame {error.frame} could not be found.")
+        await interaction.followup.send(f"Frame `{error.frame}` could not be found.")
     else:
         if not interaction.response.is_done():
             await interaction.response.send_message("<:Pizza_Depressaroli:967482279670718474> Something went wrong.")
@@ -429,9 +431,6 @@ async def sprite(interaction: discord.Interaction,
     ims = None
     if sprite not in sprites.sprites():
         sprite = to_titlecase(sprite)
-        if sprite not in sprites:
-            await interaction.followup.send(content="Incorrect Sprite")
-            return
     name = sprite
     sprite = sprites[name]
 
@@ -673,7 +672,7 @@ async def hair(interaction: discord.Interaction):
 
 def is_me():
     def predicate(interaction: discord.Interaction) -> bool:
-        return interaction.user.id == 105725338541101056
+        return interaction.user.id == ownerid
     return app_commands.check(predicate)
 
 @tree.command(guild=TEST_GUILD, description="Death.")
@@ -681,5 +680,10 @@ def is_me():
 async def die(interaction: discord.Interaction):
     await interaction.response.send_message(content="I hath been slayn.")
     await client.close()
+
+@tree.command(guild=TEST_GUILD, description="HACKING CODING.")
+@is_me()
+async def exec(interaction: discord.Interaction, thing: str):
+    await interaction.response.send_message(content=f"```{eval(thing)}```")
 
 client.run(TOKEN)
