@@ -266,10 +266,15 @@ async def make_dog(interaction: discord.Interaction,
             im.alpha_composite(im2)
 
     # -- Expression -- #
-    if not sprites.expression.is_frame(expression):
-        await interaction.followup.send(f"<:Pizza_OhGod:967483357388759070> `{expression}` is not an expression!")
-        return
-    im2 = await sprites.expression.load_frame(expression, resize=base_size)
+    if expression != "normal":
+        if not sprites.expression.is_frame(expression):
+            await interaction.followup.send(f"<:Pizza_OhGod:967483357388759070> `{expression}` is not an expression!")
+            return
+        im2 = await sprites.expression.load_frame(expression, resize=base_size)
+    else:
+        im3 = await sprites.head.load_frame(0)
+        im2 = Image.new("RGBA", base_size)
+        im2.paste(im3, box=(150, 50))
     im2 = await colour_image(im2, body_col)
     im.alpha_composite(im2)    
 
@@ -381,7 +386,7 @@ async def clothes_autocomplete(interaction: discord.Interaction, current: str):
 
 @dog.autocomplete("expression")
 async def expression_autocomplete(interaction: discord.Interaction, current: str):
-    ls = sorted(sprites.expression.get_frames())
+    ls = ["normal"] + sorted(sprites.expression.get_frames())
     return [app_commands.Choice(name=i, value=i) for i in ls if current.lower() in i.lower()][:25]
 
 @dog.autocomplete("hat")

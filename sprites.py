@@ -18,14 +18,14 @@ spr = Path("Export_Sprites/")
 class Sprites():
     def __init__(self, spriteDict):
         self._dict = spriteDict
-        self.body = Layer(self._dict["Dog_body"]["1"])
         self.body2 = Layer(self._dict["Dog_body2"]["1"])
+        self.body = Layer(self._dict["Dog_body"]["1"])
         self.hat = Layer(self._dict["Dog_hat"]["1"])
         self.hair = Layer(self._dict["Dog_hair"]["1"])
         self.expression = Layer(self._dict["Dog_expression"]["1"])
+        self.head = Layer(self._dict["Dog_head"]["1"])
 
     def __getitem__(self, key):
-        print(key)
         if key not in self._dict:
             raise errors.SpriteNotFound(key)
         return Sprite(self._dict[key])
