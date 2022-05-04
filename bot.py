@@ -262,7 +262,7 @@ async def make_dog(interaction: discord.Interaction,
     for h in [hat,hat2]:
         if h in extraHats:
             im2 = await sprites.body2.load_frame(h+"_1", resize=base_size)
-            im2 = await colour_image(im2, clothes_col)
+            im2 = await colour_image(im2, hat_col)
             im.alpha_composite(im2)
 
     # -- Expression -- #
