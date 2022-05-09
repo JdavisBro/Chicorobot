@@ -451,7 +451,7 @@ async def sprite(interaction: discord.Interaction,
         temp = Path(temp)
         print(f"Making temp: {str(temp)}")
     
-    msg = await interaction.followup.send(content="Making Image" + ("s and saving to PNG (1/2)" if animated else ""))
+    msg = await interaction.followup.send(content="Making Image" + ("s and saving to PNG (1/2)" if animated else " (1/1)"))
 
     crop = None
 

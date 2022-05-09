@@ -73,10 +73,7 @@ class Layer():
         return False
 
     def get_frames(self):
-        if self.frames:
-            return list(range(len(self.frames)))
-        else:
-            return [i for i in self.named_frames]
+        return self.frames or [i for i in self.named_frames]
     
     def is_frame(self, frame):
         if self.frames:
