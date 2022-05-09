@@ -243,7 +243,7 @@ async def make_dog(interaction: discord.Interaction,
 
     # -- Clothing _0 -- #
     if sprites.body2.is_frame(clothes+"_0"):
-        im2 = await sprites.body2.load_frame(clothes + "_0", resize=resize)
+        im2 = await sprites.body2.load_frame(clothes + "_0", resize=base_size)
         im2 = await colour_image(im2, hat_col)
         im.alpha_composite(im2)
 
