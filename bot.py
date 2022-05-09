@@ -689,7 +689,8 @@ async def die(interaction: discord.Interaction):
 
 @tree.command(guild=TEST_GUILD, description="HACKING CODING.")
 @is_me()
-async def exec(interaction: discord.Interaction, thing: str):
-    await interaction.response.send_message(content=f"```{eval(thing)}```")
+async def exec(interaction: discord.Interaction, thing: str, backticks: bool=True):
+    out = f"```{eval(thing)}```" if backticks else str(eval(thing))
+    await interaction.response.send_message(content=out)
 
 client.run(TOKEN)
