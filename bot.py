@@ -661,9 +661,10 @@ async def palette(interaction: discord.Interaction, area_name: str=None, code_na
 
 @palette.autocomplete("area_name")
 async def area_name_autocomplete(interaction: discord.Interaction, current: str):
-    return [app_commands.Choice(name=i, value=i) for i in sorted(
+    lst = [i for i in sorted(
         [i for i in paletteAliases.keys()] + ["Random"]
     ) if current in i][:25]
+    return [app_commands.Choice(name=i, value=i) for i in lst]
 
 @palette.autocomplete("code_name")
 async def code_name_autocomplete(interaction: discord.Interaction, current: str):
