@@ -281,7 +281,7 @@ async def make_dog(interaction: discord.Interaction,
     # -- Clothing _2 -- #
     if sprites.body2.is_frame(clothes+"_2"):
         im2 = await sprites.body2.load_frame(clothes+"_2", resize=base_size)
-        im2 = await colour_image(im2, hat_col)
+        im2 = await colour_image(im2, clothes_col)
         im.alpha_composite(im2)
     
     # -- Hats _1 -- #
@@ -690,7 +690,7 @@ async def die(interaction: discord.Interaction):
 @tree.command(guild=TEST_GUILD, description="HACKING CODING.")
 @is_me()
 async def exec(interaction: discord.Interaction, thing: str, backticks: bool=True):
-    out = f"```{eval(thing)}```" if backticks else str(eval(thing))
+    out = f"```{eval(thing)}```"[:1990] if backticks else str(eval(thing))[:1999]
     await interaction.response.send_message(content=out)
 
 client.run(TOKEN)
