@@ -1,3 +1,3 @@
-git+https://github.com/Rapptz/discord.py@40176bb71b903461499c74e6f55247a3d71ac0cb
+git+https://github.com/Rapptz/discord.py@9fe19dcc6923e4b6133bdedafb33658bf37c9ab7
 pillow
 numpy

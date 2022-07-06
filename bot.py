@@ -13,12 +13,15 @@ import discord
 from discord import app_commands
 from PIL import Image, ImageChops#, ImageDraw, ImageFont
 import numpy
+from typing import Union
 
-from sprites import sprites, Layer
+from sprites import sprites, Layer, Sprite
 import errors
 
 with Path("TOKEN.txt").open("r") as f:
     TOKEN = f.readline().rstrip()
+
+imagemagick: Union[Path, str, None] = None
 
 if sys.platform.startswith("win32") or sys.platform.startswith("cygwin"):
     imagemagick = shutil.which("magick")
@@ -27,16 +30,11 @@ else:
 if not imagemagick:
     imagemagick = Path("imagemagick/convert.exe")
     if not imagemagick.exists():
-        imagemagick = False
+        imagemagick = None
 
 intents = discord.Intents.default()
 client = discord.Client(intents=intents)
 tree = app_commands.CommandTree(client)
-
-# TEST_GUILD = discord.Object(473976215301128193) # msmg
-TEST_GUILD = discord.Object(947898290735833128) # gay baby jail
-
-ownerid = 105725338541101056
 
 with Path("palettes.json").open("r") as f:
     palettes = json.load(f)
@@ -50,8 +48,6 @@ for v in palettes.values():
 all_colours += [[242, 0, 131],[217, 199, 190]] # Pickle and dust!
 
 randomablePalettes = [i for i in palettes.keys() if i not in ["boss1", "boss2", "town_spooky", "town_spooky2", "town_postgame"]]
-
-spr = Path("Export_Sprites/")
 
 hairHats = (
     "Aviators",
@@ -118,7 +114,6 @@ paletteAliases = {
     "Boss 1": "boss1",
     "Boss 2": "boss2",
     "Brekkie": "brekkie",
-    "Brekkie": "brekkie",
     "Brunch Canyon": "brunch",
     "Caves": "cave",
     "Dinners": "dinners",
@@ -151,8 +146,12 @@ class ColourError(Exception):
 
 @client.event
 async def on_ready():
-    await tree.sync(guild=TEST_GUILD)
+    # await tree.sync(guild=discord.Object(473976215301128193))
+    await tree.sync(guild=discord.Object(947898290735833128))
     
+    appinfo = await client.application_info()
+    client.ownerid = appinfo.owner.id    
+
     print("LOGGED IN!")
 
 @tree.error
@@ -209,7 +208,6 @@ async def make_dog(interaction: discord.Interaction,
     await interaction.response.defer(thinking=True)
 
     clothes = to_titlecase(clothes)
-    
     hat = to_titlecase(hat)
     hat2 = to_titlecase(hat2)
 
@@ -287,7 +285,8 @@ async def make_dog(interaction: discord.Interaction,
     # -- Hats _1 -- #
     for h in [hat,hat2]:
         if sprites.hat.is_frame(h+"_1"): # Behind hair part of hat (only used for horns)
-            im2 = await colour_image(Image.open(get_location(sprites['Dog_hat']['1'], h+"_1")).resize(base_size), hat_col)
+            im2 = await sprites.hat.load_frame(h+"_1", resize=base_size)
+            im2 = await colour_image(im2, hat_col)
             im.alpha_composite(im2)
 
     # -- Hair -- #
@@ -343,7 +342,7 @@ async def make_dog(interaction: discord.Interaction,
     file = discord.File(imbyte, "dog.png")
     await interaction.followup.send(content=f"Dog:\n`/dog expression:{expression} clothes:{clothes} hat:{hat} hair:{hair} hat2:{hat2} body_col:{('#%02x%02x%02x' % body_col) if isinstance(body_col, tuple) else body_col} clothes_col:{('#%02x%02x%02x' % clothes_col) if isinstance(clothes_col, tuple) else clothes_col} hat_col:{('#%02x%02x%02x' % hat_col) if isinstance(hat_col, tuple) else hat_col}`{extra_text}", file=file)
 
-@tree.command(guild=TEST_GUILD, name="random_dog", description="Make a random dog!")
+@tree.command(name="random_dog", description="Make a random dog!")
 @app_commands.describe(use_palettes="Only use colours from the game.", limit_to_one_palette="Choose one palette from the game and use colours from it.", add_hat2="Add a random hat2")
 async def random_dog(interaction: discord.Interaction, use_palettes: bool=True, limit_to_one_palette: bool=False, add_hat2: bool=False):
     chosen = None
@@ -371,7 +370,7 @@ async def random_dog(interaction: discord.Interaction, use_palettes: bool=True, 
         extra_text="" if not limit_to_one_palette else f"\nPalette: {chosen}"
     )
 
-@tree.command(guild=TEST_GUILD, name="dog", description="Make a Dog!")
+@tree.command(name="dog", description="Make a Dog!")
 async def dog(interaction: discord.Interaction,
         expression: str, clothes: str, hat: str, hair: str="0", hat2: str="None",
         body_col: str="#ffffff", clothes_col: str="#ffffff", hat_col: str="#ffffff",
@@ -403,7 +402,7 @@ async def hair_autocomplete(interaction: discord.Interaction, current:str):
     return [app_commands.Choice(name=i, value=i) for i in ls if current.lower() in i.lower()][:25]
 
 
-@tree.command(guild=TEST_GUILD, description="Show a sprite.")
+@tree.command(description="Show a sprite.")
 @app_commands.describe(
     sprite="The sprite to show", animated="If True, sends an animated gif", animation_name="Name of the animation to use, get a list of them for a sprite using /animations.", animation_fps="If animated. Sets the FPS of the animation",
     crop_transparency="Removes any blank area around the image", use_frame="If not animated, choose a frame of the sprite to send (starts at 0)", output_zip="Outputs animation as a zip of PNGs for high quality."
@@ -574,7 +573,7 @@ async def sprite(interaction: discord.Interaction,
         file = discord.File(imbyte, f"{name}..png")
         await msg.edit(content=f"{name} frame `{f}`:", attachments=[file])
 
-@tree.command(guild=TEST_GUILD, description="Lists animations for a specific sprite")
+@tree.command(description="Lists animations for a specific sprite")
 async def animations(interaction: discord.Interaction, sprite: str):
     anims = []
     for layer in sprites[sprite].get_layers():
@@ -593,7 +592,7 @@ async def animations_sprite_autocomplete(interaction: discord.Interaction, curre
             continue
     return [app_commands.Choice(name=i, value=i) for i in lst]
 
-@tree.command(guild=TEST_GUILD, description="Lists frames for a specific sprite")
+@tree.command(description="Lists frames for a specific sprite")
 async def frames(interaction: discord.Interaction, sprite: str):
     if sprite not in sprites.sprites():
         await interaction.response.send_message(content="Incorrect Sprite")
@@ -621,43 +620,50 @@ async def sprite_autocomplete(interaction: discord.Interaction, current: str):
     lst = sorted(list(sprites.sprites()) + ["Random"])
     return [app_commands.Choice(name=i, value=i) for i in lst if current.lower() in i.lower()][:25]
 
-@tree.command(guild=TEST_GUILD, description="Get a palette from the game!")
+@tree.command(description="Get a palette from the game!")
 @app_commands.describe(
     area_name="Name of an area from the game. Not required if code_name specified.",
     code_name="Name of a palette in the games code. Not required if area_name specified."
 )
 async def palette(interaction: discord.Interaction, area_name: str=None, code_name: str="Random"):
-    palette = code_name
     if area_name:
         area_name = to_titlecase(area_name)
+
+        if area_name == "Random":
+            area_name = random.choice([i for i in paletteAliases.keys()])
+        
         if area_name in paletteAliases:
             palette = paletteAliases[area_name]
-        elif area_name == "Random":
-            palette = "random"
+            palette_text = f"`{area_name}` (`{palette}`)"
         else:
-            await interaction.response.send_message(f"Palette `{area_name}` not found.")
+            await interaction.response.send_message(f"<:Pizza_Awkward:967482807960105062> Area palette `{area_name}` not found.")
             return
-    p = None
-    palette = palette.lower()
-    if palette == "random":
-        palette = random.choice(list(palettes.keys()))
-    if palette in palettes.keys():
-        p = palettes[palette]
+
     else:
-        await interaction.response.send_message(f"<:Pizza_Awkward:967482807960105062> `{palette}` is not a palette")
-        return
-    p = [tuple(c) for c in p]
+        palette = code_name.lower()
+        palette_text = f"`{code_name.lower()}`"
+        
+        if palette == "random":
+            palette = random.choice(list(palettes.keys()))
+            palette_text = f"`{palette}`"
+    
+        if palette not in palettes.keys():
+            await interaction.response.send_message(f"<:Pizza_Awkward:967482807960105062> Code palette `{code_name}` not found.")
+            return
+    
+    colours = [tuple(c) for c in palettes[palette]]
     width = 63
-    im = Image.new("RGB", (width*len(p), 20), p[0])
-    for i, v in enumerate(p):
+    im = Image.new("RGB", (width*len(colours), 20), colours[0])
+    for i, colour in enumerate(colours):
         if i == 0:
             continue
-        im.paste(Image.new("RGB",(width,20),v), box=(width*i,0))
+        im.paste(Image.new("RGB", (width, 20), colour), box=(width*i, 0))
+    
     fp = BytesIO()
     im.save(fp, format="PNG")
     fp.seek(0)
     file = discord.File(fp, filename="palette.png")
-    await interaction.response.send_message(f"{palette}:\n`{'`, `'.join([('#%02x%02x%02x' % i) for i in p])}`", file=file)
+    await interaction.response.send_message(f"{palette_text}\n`{'`, `'.join([('#%02x%02x%02x' % i) for i in colours])}`", file=file)
 
 @palette.autocomplete("area_name")
 async def area_name_autocomplete(interaction: discord.Interaction, current: str):
@@ -672,22 +678,22 @@ async def code_name_autocomplete(interaction: discord.Interaction, current: str)
         [i for i in palettes.keys()] + ["random"]
     ) if current in i][:25]
 
-@tree.command(guild=TEST_GUILD, description="Send a picture of hair to number.")
+@tree.command(description="Send a picture of hair to number.")
 async def hair(interaction: discord.Interaction):
     await interaction.response.send_message(content="https://cdn.discordapp.com/attachments/947900270992556033/967877113099219004/unknown.png", ephemeral=True)
 
 def is_me():
     def predicate(interaction: discord.Interaction) -> bool:
-        return interaction.user.id == ownerid
+        return interaction.user.id == client.ownerid
     return app_commands.check(predicate)
 
-@tree.command(guild=TEST_GUILD, description="Death.")
+@tree.command(description="Death.")
 @is_me()
 async def die(interaction: discord.Interaction):
     await interaction.response.send_message(content="I hath been slayn.")
     await client.close()
 
-@tree.command(guild=TEST_GUILD, description="HACKING CODING.")
+@tree.command(description="HACKING CODING.")
 @is_me()
 async def exec(interaction: discord.Interaction, thing: str, backticks: bool=True):
     out = f"```{eval(thing)}```"[:1990] if backticks else str(eval(thing))[:1999]
