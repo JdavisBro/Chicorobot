@@ -2,6 +2,7 @@ import json
 import random
 import sys
 import shutil
+import inspect
 import math
 import tempfile
 import zipfile
@@ -177,9 +178,6 @@ async def command_error(interaction: discord.Interaction, error):
             await interaction.followup.send("<:Pizza_Depressaroli:967482279670718474> Something went wrong.")
     raise error
 
-def clamp(value, min, max):
-    return min if value <= min else max if value >= max else value
-
 def to_titlecase(string):
     if "-" in string:
         return "-".join([word[0].upper() + word[1:].lower() for word in string.split("-")]) # Half-Moons
@@ -195,6 +193,8 @@ async def colour_image(im: Image, colour):
             colour = tuple([int(colour[i:i+2], 16) for i in (0, 2, 4)] + [255])
         except ValueError:
             raise ColourError()
+    elif colour == (255, 255, 255):
+        return im
     else:
         colour = tuple(list(colour) + [255])
     return ImageChops.multiply( im, Image.new("RGBA", im.size, colour))
@@ -401,10 +401,9 @@ async def hair_autocomplete(interaction: discord.Interaction, current:str):
     ls = sorted(sprites.hair.get_frames())
     return [app_commands.Choice(name=i, value=i) for i in ls if current.lower() in i.lower()][:25]
 
-
 @tree.command(description="Show a sprite.")
 @app_commands.describe(
-    sprite="The sprite to show", animated="If True, sends an animated gif", animation_name="Name of the animation to use, get a list of them for a sprite using /animations.", animation_fps="If animated. Sets the FPS of the animation",
+    sprite="The sprite to show", animated="If True, sends an animated gif", animation_name="Name of the animation to use, get a list of them for a sprite using /animations.", animation_fps="If animated. Sets the FPS of the animation (max 50)",
     crop_transparency="Removes any blank area around the image", use_frame="If not animated, choose a frame of the sprite to send (starts at 0)", output_zip="Outputs animation as a zip of PNGs for high quality."
 )
 async def sprite(interaction: discord.Interaction,
@@ -419,8 +418,7 @@ async def sprite(interaction: discord.Interaction,
 
     try:
         animation_fps = round(animation_fps)
-        if animation_fps < 1:
-            animation_fps = 1
+        animation_fps = min(max(animation_fps, 1), 50)
     except ValueError:
         await interaction.followup.send("FPS incorrect.")
         return
@@ -579,7 +577,7 @@ async def animations(interaction: discord.Interaction, sprite: str):
     for layer in sprites[sprite].get_layers():
         if sprites[sprite][layer].anim_root:
             anims += list(sprites[sprite][layer].anim_root)
-    await interaction.response.send_message(content=f"Anims: `{'`, `'.join(anims)}`")
+    await interaction.response.send_message(content=f"{sprite} animations: `{'`, `'.join(anims)}`")
 
 @animations.autocomplete("sprite")
 async def animations_sprite_autocomplete(interaction: discord.Interaction, current: str):
@@ -696,7 +694,20 @@ async def die(interaction: discord.Interaction):
 @tree.command(description="HACKING CODING.")
 @is_me()
 async def exec(interaction: discord.Interaction, thing: str, backticks: bool=True):
-    out = f"```{eval(thing)}```"[:1990] if backticks else str(eval(thing))[:1999]
+    thingout = eval(thing)
+    if inspect.isawaitable(thingout):
+        thingout = await thingout
+    thingout = str(thingout)
+    out = f"```{thingout[1994]}```" if backticks else thingout[:2000]
     await interaction.response.send_message(content=out)
+
+@exec.error
+async def exec_error(interaction, error):
+    orig = getattr(error, "original", error)
+    if isinstance(orig, SyntaxError):
+        await interaction.response.send_message("Syntax Error.")
+    else:
+        await interaction.response.send_message("Error.")
+        raise orig
 
 client.run(TOKEN)
