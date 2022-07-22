@@ -534,18 +534,9 @@ async def sprite(interaction: discord.Interaction,
         else:
             print(f"Deleted temp: {str(temp)}")
 
-    if animated and output_zip:
-        await msg.edit(content="Zipping PNGs (2/2)")
-        f = BytesIO()
-        with zipfile.ZipFile(f, "x") as zipf:
-            for i in temp.iterdir():
-                zipf.write(i, i.relative_to(temp))
-        f.seek(0)
-        file = discord.File(f, f"{name}.zip")
-        await msg.edit(content=f"{name}:", attachments=[file])
-        del_temp()
+    giferror = False
 
-    elif animated:
+    if animated and not output_zip:
         await msg.edit(content="Converting PNGs to GIF (2/2)")
         addcrop = f"-crop {crop[2]-crop[0]}x{crop[3]-crop[1]}+{crop[0]}+{crop[1]} +repage " if crop_transparency else ""
         process = await asyncio.create_subprocess_shell(
@@ -555,16 +546,27 @@ async def sprite(interaction: discord.Interaction,
         )
         await process.communicate()
         if process.returncode != 0: # Error
-            await msg.edit(content="<:Pizza_Depressaroli:967482279670718474> Something went wrong (gif conversion error).")
-            print(f"GIF CONVERSION ERROR: {process.stderr.read()}")
+            print(f"GIF CONVERSION ERROR: {await process.stderr.read()}")
+            giferror = True
+        else:
+            file = discord.File(temp / "out.gif", f"{name}.gif")
+            await msg.edit(content=f"{name} at {animation_fps} fps:", attachments=[file])
+            del file # Release out.gif
             del_temp()
-            return
-        file = discord.File(temp / "out.gif", f"{name}.gif")
-        await msg.edit(content=f"{name} at {animation_fps} fps:", attachments=[file])
-        del file # Release out.gif
+
+    if animated and (output_zip or giferror):
+        await msg.edit(content=f"{'GIF Conversion failed, ' if giferror else ''}Zipping PNGs (2/2)")
+        f = BytesIO()
+        with zipfile.ZipFile(f, "x") as zipf:
+            for i in temp.iterdir():
+                zipf.write(i, i.relative_to(temp))
+        f.seek(0)
+        file = discord.File(f, f"{name}.zip")
+        out = f"{name}:" if not giferror else f"{name} (Zip, GIF conversion failed):"
+        await msg.edit(content=out, attachments=[file])
         del_temp()
 
-    else:
+    if not animated:
         imbyte = BytesIO()
         ims.save(imbyte, "PNG")
         imbyte.seek(0)
@@ -693,13 +695,14 @@ async def die(interaction: discord.Interaction):
 
 @tree.command(description="HACKING CODING.")
 @is_me()
-async def exec(interaction: discord.Interaction, thing: str, backticks: bool=True):
+async def exec(interaction: discord.Interaction, thing: str, backticks: bool=True, send_result: bool=True):
     thingout = eval(thing)
     if inspect.isawaitable(thingout):
         thingout = await thingout
-    thingout = str(thingout)
-    out = f"```{thingout[1994]}```" if backticks else thingout[:2000]
-    await interaction.response.send_message(content=out)
+    if send_result:
+        thingout = str(thingout)
+        out = f"```{thingout[:1994]}```" if backticks else thingout[:2000]
+        await interaction.response.send_message(content=out)
 
 @exec.error
 async def exec_error(interaction, error):
