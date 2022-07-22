@@ -416,14 +416,13 @@ async def sprite(interaction: discord.Interaction,
 
     colour_3 = colour_3 or colour_1
 
-    try:
-        animation_fps = round(animation_fps)
-        animation_fps = min(max(animation_fps, 1), 50)
-    except ValueError:
-        await interaction.followup.send("FPS incorrect.")
-        return
+    if output_zip and not animated:
+        animated = True
 
-    if animated and not imagemagick:
+    animation_fps = round(animation_fps)
+    animation_fps = min(max(animation_fps, 1), 50)
+
+    if (animated and not output_zip) and not imagemagick:
         await interaction.followup.send(content="Animated sprites are unavailable, making non animated version.")
         animated = False
     
@@ -442,19 +441,30 @@ async def sprite(interaction: discord.Interaction,
         sproot = "_".join(name.split("_")[:-1]) + "_"
         layers += [sprites[i]["1"] for i in [sproot+"B",sproot+"ear"]]
     
-    frameN = 0
+    frames = sprite.layer.get_frames()
+
+    wasanimated = False
+    if len(frames) == 1:
+        animated = False
+        wasanimated = True
+
+    
+    content = "Making Image"
     if animated:
+        content += "s and saving to PNG (1/2)"
+    elif wasanimated:
+        content += " (single frame sprite, does not need to be animated)"
+    msg = await interaction.followup.send(content=content)
+
+    frameN = 0
+    if animated: # Create temp for frame saving
         temp = tempfile.mkdtemp()
         temp = Path(temp)
         print(f"Making temp: {str(temp)}")
-    
-    msg = await interaction.followup.send(content="Making Image" + ("s and saving to PNG (1/2)" if animated else " (1/1)"))
 
-    crop = None
-
-    f = 0
-    if use_frame:
+    if use_frame: # User specified frame
         frames = sprite.layer.get_frames()
+        f = 0
         try:
             f = int(use_frame)
             namestr = False
@@ -477,9 +487,8 @@ async def sprite(interaction: discord.Interaction,
                 await msg.edit("Invalid frame. Use `/frames` to check available frames!")
                 return
             frames = [f]
-    else:
-        frames = sprite.layer.get_frames()
 
+    crop = None
 
     for frame in frames:
         f = frame
@@ -505,7 +514,7 @@ async def sprite(interaction: discord.Interaction,
                 im.alpha_composite(await colour_image(im2, col))
         if crop_transparency:
             imnp = numpy.array(im)
-            imnp = numpy.where(imnp[:, :, 3] > 0)
+            imnp = numpy.where(imnp[:, :, 3] > 0) # Non transparent pixels
             try:
                 if not crop:
                     crop  = [imnp[1].min(), imnp[0].min(), imnp[1].max(), imnp[0].max()]
@@ -526,6 +535,13 @@ async def sprite(interaction: discord.Interaction,
                 ims = im
             break
 
+    if not animated:
+        imbyte = BytesIO()
+        ims.save(imbyte, "PNG")
+        imbyte.seek(0)
+        file = discord.File(imbyte, f"{name}..png")
+        await msg.edit(content=f"{name} frame `{f}`{' (one frame sprite, animation not required)' if wasanimated else ''}:", attachments=[file])
+
     def del_temp():
         try:
             shutil.rmtree(temp)
@@ -540,13 +556,13 @@ async def sprite(interaction: discord.Interaction,
         await msg.edit(content="Converting PNGs to GIF (2/2)")
         addcrop = f"-crop {crop[2]-crop[0]}x{crop[3]-crop[1]}+{crop[0]}+{crop[1]} +repage " if crop_transparency else ""
         process = await asyncio.create_subprocess_shell(
-            f"{imagemagick} -delay 1x{animation_fps} -loop 0 -dispose Background {addcrop}{temp / '*.png'} {temp / 'out.gif'}",
+            f"{imagemagick} -delay 1x{animation_fps} -loop 0 -dispose Background {addcrop}{temp / '*.png'} {temp / 'out.gif'}", # imagemagick is the only good way I've found of creating a GIF in python without it being horrible quality or not maintaining transparency.
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE
         )
         await process.communicate()
         if process.returncode != 0: # Error
-            print(f"GIF CONVERSION ERROR: {await process.stderr.read()}")
+            print(f"GIF CONVERSION ERROR: {await process.stdout.read()}")
             giferror = True
         else:
             file = discord.File(temp / "out.gif", f"{name}.gif")
@@ -565,13 +581,6 @@ async def sprite(interaction: discord.Interaction,
         out = f"{name}:" if not giferror else f"{name} (Zip, GIF conversion failed):"
         await msg.edit(content=out, attachments=[file])
         del_temp()
-
-    if not animated:
-        imbyte = BytesIO()
-        ims.save(imbyte, "PNG")
-        imbyte.seek(0)
-        file = discord.File(imbyte, f"{name}..png")
-        await msg.edit(content=f"{name} frame `{f}`:", attachments=[file])
 
 @tree.command(description="Lists animations for a specific sprite")
 async def animations(interaction: discord.Interaction, sprite: str):
