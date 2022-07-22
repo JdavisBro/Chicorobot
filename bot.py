@@ -463,7 +463,6 @@ async def sprite(interaction: discord.Interaction,
         print(f"Making temp: {str(temp)}")
 
     if use_frame: # User specified frame
-        frames = sprite.layer.get_frames()
         f = 0
         try:
             f = int(use_frame)
