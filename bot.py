@@ -688,7 +688,7 @@ async def code_name_autocomplete(interaction: discord.Interaction, current: str)
 
 @tree.command(description="Send a picture of hair to number.")
 async def hair(interaction: discord.Interaction):
-    await interaction.response.send_message(content="https://cdn.discordapp.com/attachments/947900270992556033/967877113099219004/unknown.png", ephemeral=True)
+    await interaction.response.send_message(content="https://media.discordapp.net/attachments/967965561361428490/1004109210151301120/unknown.png", ephemeral=True)
 
 def is_me():
     def predicate(interaction: discord.Interaction) -> bool:
