@@ -88,13 +88,13 @@ dogHat = [
     "Hat/Brimcap",
     "Hat/Strawhat",
     "Hat/Sunhat",
-    "Hair/00",
-    "Hair/01",
-    "Hair/02",
+    "Hair/Simple",
+    "Hair/Flip",
+    "Hair/Floofy",
     "Hat/Headband",
     "Hat/Bow",
-    "Hair/03",
-    "Hair/04",
+    "Hair/Big Fluffy",
+    "Hair/Gorgeous",
     "Hat/Antenna",
     "Hat/Flower",
     "Hat/Howdy",
@@ -139,28 +139,28 @@ dogHat = [
     "Hat/Monocle",
     "Hat/Stormy",
     "Hat/Superstar",
-    "Hair/05",
-    "Hair/06",
-    "Hair/07",
-    "Hair/08",
-    "Hair/09",
-    "Hair/10",
-    "Hair/11",
-    "Hair/12",
-    "Hair/13",
-    "Hair/14",
-    "Hair/15",
-    "Hair/16",
-    "Hair/17",
-    "Hair/18",
-    "Hair/19",
-    "Hair/20",
-    "Hair/21",
-    "Hair/22",
-    "Hair/23",
-    "Hair/24",
-    "Hair/25",
-    "Hair/26",
+    "Hair/Mullet",
+    "Hair/Bowl",
+    "Hair/Pony",
+    "Hair/Hedgehog",
+    "Hair/Boyband",
+    "Hair/Shaved",
+    "Hair/Shortcurl",
+    "Hair/Pixie",
+    "Hair/Bob",
+    "Hair/Anime",
+    "Hair/Dreds",
+    "Hair/Fuzz",
+    "Hair/Fro",
+    "Hair/Emo",
+    "Hair/Pigtails",
+    "Hair/Pompadour",
+    "Hair/Spikehawk",
+    "Hair/Flame",
+    "Hair/Topknot",
+    "Hair/Bellhair",
+    "Hair/Hawk",
+    "Hair/Longpony",
     "Hat/Headphones",
     "Hat/Headscarf",
     "Hat/Skate Helmet",
@@ -173,12 +173,12 @@ dogHat = [
     "Hat/Tiara",
     "Hat/Horns",
     "Hat/Horns_1",
-    "Hair/27",
-    "Hair/28",
-    "Hair/29",
-    "Hair/30",
-    "Hair/31",
-    "Hair/32"
+    "Hair/Highback",
+    "Hair/Swoosh",
+    "Hair/Mofro",
+    "Hair/Poodle",
+    "Hair/Frizz",
+    "Hair/Curleye"
 ]
 
 dogExpressions = [
@@ -288,7 +288,7 @@ def add_sprite(path):
     elif sprite == "Dog_hat":
         spritesDict[sprite][layer]["named_frames"][dogHat[frame].split("/")[1]] = frame
     elif sprite == "Dog_hair":
-        spritesDict[sprite][layer]["named_frames"][int(dogHat[frame].split("/")[1])] = frame
+        spritesDict[sprite][layer]["named_frames"][dogHat[frame].split("/")[1]] = frame
         spritesDict[sprite][layer]["root"] = f"sprDog_hat_"
     elif sprite == "Dog_expression":
         spritesDict[sprite][layer]["named_frames"][dogExpressions[frame]] = frame
@@ -304,9 +304,6 @@ def add_sprite(path):
             spritesDict[sprite][layer]["anim_root"] = {}
         spritesDict[sprite][layer]["anim_root"]["en"] = ""
         spritesDict[sprite][layer]["offset"] = 8
-
-    if sprite == "Finalboss_finalform":
-        print(f"{'_'.join(path.stem.split('_')[:-1])}_{int(path.stem.split('_')[-1]):03}" )
 
 if __name__ == "__main__":
     main()
