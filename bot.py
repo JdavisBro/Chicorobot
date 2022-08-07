@@ -444,7 +444,7 @@ async def sprite(interaction: discord.Interaction,
     frames = sprite.layer.get_frames()
 
     wasanimated = False
-    if len(frames) == 1:
+    if len(frames) == 1 and animated:
         animated = False
         wasanimated = True
 
