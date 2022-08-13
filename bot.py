@@ -5,9 +5,11 @@ import shutil
 import inspect
 import math
 import tempfile
+import textwrap
 import zipfile
-from io import BytesIO
+from io import BytesIO, StringIO
 from pathlib import Path
+from contextlib import redirect_stdout
 
 import asyncio
 import discord
@@ -34,14 +36,15 @@ if not imagemagick:
         imagemagick = None
 
 intents = discord.Intents.default()
+intents.members = True
 client = discord.Client(intents=intents)
 tree = app_commands.CommandTree(client)
 
 with Path("palettes.json").open("r") as f:
     palettes = json.load(f)
 
-with Path("dog_animations.json").open("r") as f:
-    dog_animations = json.load(f)
+# with Path("dog_animations.json").open("r") as f:
+#     dog_animations = json.load(f)
 
 all_colours = []
 for v in palettes.values():
@@ -147,8 +150,11 @@ class ColourError(Exception):
 
 @client.event
 async def on_ready():
-    # await tree.sync(guild=discord.Object(473976215301128193))
-    await tree.sync(guild=discord.Object(947898290735833128))
+    #guild = discord.Object(473976215301128193) # msmg
+    guild = discord.Object(947898290735833128)
+
+    #tree.copy_global_to(guild=guild)
+    await tree.sync(guild=guild)
     
     appinfo = await client.application_info()
     client.ownerid = appinfo.owner.id    
@@ -701,24 +707,58 @@ async def die(interaction: discord.Interaction):
     await interaction.response.send_message(content="I hath been slayn.")
     await client.close()
 
-@tree.command(description="HACKING CODING.")
+class ExecModal(discord.ui.Modal, title="Execute Code!"):
+    code = discord.ui.TextInput(label="Code!", style=discord.TextStyle.long)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+
+        # Reworked from https://github.com/Rapptz/RoboDanny/blob/rewrite/cogs/admin.py#L216-L261
+
+        env = {
+            "client": client,
+            "interaction": interaction,
+            "guild": interaction.guild,
+            "channel": interaction.channel,
+            "user": interaction.user,
+            "_": client.previous_exec
+        }
+
+        env.update(globals())
+
+        execcode = textwrap.indent(self.code.value, "    ")
+        execcode = f"async def func():\n{code}"
+
+        try:
+            exec(execcode, env)
+        except Exception as error:
+            await interaction.followup.send(f"```py\n{error.__class__.__name__}: {error}\n```", ephemeral=True)
+            raise error
+            return
+
+        await interaction.followup.send(f"Executing:\n```py\n{code}\n```", ephemeral=True)
+
+        stdout = StringIO()
+        func = env["func"]
+        try:
+            with redirect_stdout(stdout):
+                value = await func()
+        except Exception as error:
+            out = stdout.getvalue()
+            await interaction.followup.send(f"ERROR:\n```py\n{out}\n{error.__class__.__name__}: {error}```", ephemeral=True)
+        else:
+            out = stdout.getvalue()
+            if out:
+                await interaction.followup.send(f"```py\n{out}\n```", ephemeral=True)
+            if value:
+                client.previous_exec = value
+                await interaction.followup.send(value)
+
+@tree.command(name="exec", description="HACKING CODING.")
 @is_me()
-async def exec(interaction: discord.Interaction, thing: str, backticks: bool=True, send_result: bool=True):
-    thingout = eval(thing)
-    if inspect.isawaitable(thingout):
-        thingout = await thingout
-    if send_result:
-        thingout = str(thingout)
-        out = f"```{thingout[:1994]}```" if backticks else thingout[:2000]
-        await interaction.response.send_message(content=out)
+async def execute(interaction: discord.Interaction):
+    await interaction.response.send_modal(ExecModal())
 
-@exec.error
-async def exec_error(interaction, error):
-    orig = getattr(error, "original", error)
-    if isinstance(orig, SyntaxError):
-        await interaction.response.send_message("Syntax Error.")
-    else:
-        await interaction.response.send_message("Error.")
-        raise orig
-
+client.previous_exec = None
+client.ownerid = 0
 client.run(TOKEN)
