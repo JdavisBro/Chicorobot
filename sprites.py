@@ -1,8 +1,9 @@
 import asyncio
 import json
 from pathlib import Path
+from typing import Union
 
-from PIL import Image
+from PIL import Image, ImageChops
 
 import errors
 
@@ -10,10 +11,26 @@ __all__ = (
     "Sprites",
     "Sprite",
     "Layer",
-    "sprite"
+    "sprites",
+    "colour_image"
 )
 
 spr = Path("Export_Sprites/")
+
+async def colour_image(im, colour):
+    if isinstance(colour, str): # String, Hex
+        colour = colour.lstrip("#").lower()
+        if colour == "ffffff": # WHITE, no need to colour :D
+            return im
+        try:
+            colour = tuple([int(colour[i:i+2], 16) for i in (0, 2, 4)] + [255])
+        except ValueError:
+            raise errors.ColourError()
+    else: # Tuple
+        if colour == (255, 255, 255): # WHITE, no need to colour :D
+            return im
+        colour = tuple(list(colour) + [255])
+    return ImageChops.multiply(im, Image.new("RGBA", im.size, colour))
 
 class Sprites():
     def __init__(self, spriteDict):
@@ -107,7 +124,8 @@ class Layer():
     def get_frame_path(self, frame, anim=None):
         return spr / (self.get_frame(frame, anim) + ".png")
 
-    async def load_frame(self, frame, anim=None, resize: tuple=False):
+    async def load_frame(self, frame, anim=None, resize: tuple=False, colour: Union[str, tuple]=None):
+        # Get Path & Load Image
         path = self.get_frame_path(frame, anim)
         if path.exists():
             im = Image.open(path)
@@ -116,9 +134,13 @@ class Layer():
                 im = Image.open(self.get_frame_path(int(frame) - 1, anim))
             except (FileNotFoundError, ValueError):
                 return Image.open(self.get_frame_path(frame))
+        # Resize
         if resize:
             im = im.resize(resize)
-        return im
+        # Colour
+        if not colour:
+            return im
+        return await colour_image(im, colour)
 
 with open("sprites.json") as f:
     sprites = Sprites(json.load(f))

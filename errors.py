@@ -9,3 +9,7 @@ class LayerNotFound(Exception):
 class FrameNotFound(Exception):
     def __init__(self, frame):
         self.frame = frame
+
+class ColourError(Exception):
+    pass
+

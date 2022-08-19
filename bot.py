@@ -18,14 +18,24 @@ from PIL import Image, ImageChops#, ImageDraw, ImageFont
 import numpy
 from typing import Union
 
-from sprites import sprites, Layer, Sprite
 import errors
+from sprites import *
+from assets import *
 
+#Get bot token
+def no_token():
+    logging.info("TOKEN NOT FOUND!! Put it as the first line in TOKEN.txt")
+    sys.exit()
+
+if not Path("TOKEN.txt").exists():
+    no_token()
 with Path("TOKEN.txt").open("r") as f:
     TOKEN = f.readline().rstrip()
+if not TOKEN:
+    no_token()
 
+# Check for imagemagick
 imagemagick: Union[Path, str, None] = None
-
 if sys.platform.startswith("win32") or sys.platform.startswith("cygwin"):
     imagemagick = shutil.which("magick")
 else:
@@ -35,176 +45,62 @@ if not imagemagick:
     if not imagemagick.exists():
         imagemagick = None
 
-intents = discord.Intents.default()
-intents.members = True
-client = discord.Client(intents=intents)
-tree = app_commands.CommandTree(client)
-
-with Path("palettes.json").open("r") as f:
-    palettes = json.load(f)
-
-# with Path("dog_animations.json").open("r") as f:
-#     dog_animations = json.load(f)
-
-all_colours = []
-for v in palettes.values():
-    all_colours += v
-all_colours += [[242, 0, 131],[217, 199, 190]] # Pickle and dust!
-
-randomablePalettes = [i for i in palettes.keys() if i not in ["boss1", "boss2", "town_spooky", "town_spooky2", "town_postgame"]]
-
-hairHats = (
-    "Aviators",
-    "Beak",
-    "Beard",
-    "Big Shades",
-    "Bow",
-    "Clown",
-    "Eyepatch",
-    "Flower",
-    "Goggles",
-    "Half-Moons",
-    "Headband",
-    "Horns",
-    "Kerchief",
-    "Line Shades",
-    "Mask",
-    "Monocle",
-    "None",
-    "Pointish Glasses",
-    "Rim Shades",
-    "Round Glasses",
-    "Scarf",
-    "Shades",
-    "Shawl",
-    "Sparkles",
-    "Spike",
-    "Square Glases",
-    "Stache",
-    "Stormy",
-    "Studs",
-    "Superstar",
-    "Tiara",
-    "Tinted Shades"
-)
-
-hatOverEar = (
-    "Ahoy",
-    "Big Fungus",
-    "Custom",
-    "Earmuffs",
-    "Headphones",
-    "Howdy",
-    "Rex Head",
-    "Spellcaster",
-    "Strawhat",
-    "Sunhat",
-    "Top Hat"
-)
-
-extraHats = [
-    "Shawl",
-    "Spike",
-    "Studs",
-    "Kerchief",
-    "Scarf"
-]
-
-paletteAliases = {
-    "Luncheon": "town",
-    "Luncheon Spooky": "town_spooky",
-    "Luncheon Spooky 2": "town_spooky2",
-    "Luncheon Postgame": "town_postgame",
-    "Boss 1": "boss1",
-    "Boss 2": "boss2",
-    "Brekkie": "brekkie",
-    "Brunch Canyon": "brunch",
-    "Caves": "cave",
-    "Dinners": "dinners",
-    "Elevenses": "elevenses",
-    "Feast": "feast",
-    "Appie Foothills": "foothills",
-    "Supper Woods": "forest",
-    "Gray": "gray",
-    "Grub Caverns": "grub1",
-    "Grub Deep": "grub2",
-    "Spoons Island": "island",
-    "Teatime Meadows": "meadows",
-    "Dessert Mountain": "mtn",
-    "Newgame": "newgame",
-    "Nibble Tunnel": "nibble",
-    "Ocean": "ocean",
-    "Dessert Mountain Peak": "peak",
-    "Potluck": "potluck",
-    "Banquet Rainforest": "rainforest",
-    "Sips River": "river",
-    "Wielder Temple": "ruins",
-    "Wielder Temple Dark": "ruins_dark",
-    "Spooky": "spooky",
-    "Simmer Springs": "springs",
-    "Gulp Swamp": "swamp"
-}
-
-class ColourError(Exception):
-    pass
-
-@client.event
-async def on_ready():
-    #guild = discord.Object(473976215301128193) # msmg
-    guild = discord.Object(947898290735833128)
-
-    #tree.copy_global_to(guild=guild)
-    await tree.sync(guild=guild)
-    
-    appinfo = await client.application_info()
-    client.ownerid = appinfo.owner.id    
-
-    print("LOGGED IN!")
-
-@tree.error
-async def command_error(interaction: discord.Interaction, error):
-    error = getattr(error, "original", error)
-    if isinstance(error, app_commands.CheckFailure):
-        await interaction.response.send_message("<:Pizza_Angry:967482622194372650> You're not allowed to do that.", ephemeral=True)
-        return
-    
-    elif isinstance(error, ColourError):
-        await interaction.followup.send("You inputted a colour wrong!")
-
-    elif isinstance(error, errors.SpriteNotFound):
-        await interaction.followup.send(f"Sprite `{error.sprite}` could not be found.")
-    elif isinstance(error, errors.LayerNotFound):
-        await interaction.followup.send(f"Layer `{error.layer}` could not be found.")
-    elif isinstance(error, errors.FrameNotFound):
-        await interaction.followup.send(f"Frame `{error.frame}` could not be found.")
-    else:
-        if not interaction.response.is_done():
-            await interaction.response.send_message("<:Pizza_Depressaroli:967482279670718474> Something went wrong.")
-        else:
-            await interaction.followup.send("<:Pizza_Depressaroli:967482279670718474> Something went wrong.")
-    raise error
-
+# Util Funcs
 def to_titlecase(string):
     if "-" in string:
         return "-".join([word[0].upper() + word[1:].lower() for word in string.split("-")]) # Half-Moons
     else:
         return " ".join([word[0].upper() + word[1:].lower() for word in string.split(" ")])
 
-async def colour_image(im: Image, colour):
-    if not isinstance(colour, tuple):
-        colour = colour.lstrip("#")
-        if colour == "ffffff":
-            return im
-        try:
-            colour = tuple([int(colour[i:i+2], 16) for i in (0, 2, 4)] + [255])
-        except ValueError:
-            raise ColourError()
-    elif colour == (255, 255, 255):
-        return im
-    else:
-        colour = tuple(list(colour) + [255])
-    return ImageChops.multiply( im, Image.new("RGBA", im.size, colour))
+# Discord Client
+class Chicorobot(discord.Client):
+    def __init__(self):
+        intents = discord.Intents.default()
+        intents.members = True
+        super().__init__(intents=intents)
+        self.previous_exec = None
+        self.ownerid = 0
 
+    async def setup_hook(self):
+        #guild = discord.Object(473976215301128193) # msmg
+        guild = discord.Object(947898290735833128)
+
+        tree.copy_global_to(guild=guild)
+        await tree.sync(guild=guild)
+        
+        appinfo = await client.application_info()
+        client.ownerid = appinfo.owner.id
+
+client = Chicorobot()
+tree = app_commands.CommandTree(client)
+
+# Discord Events and Error Handling
+@client.event
+async def on_ready():
+    print("LOGGED IN!")
+
+@tree.error
+async def command_error(interaction: discord.Interaction, error):
+    error = getattr(error, "original", error)
+    
+    send = interaction.response.send_message if not interaction.response.is_done() else interaction.followup.send
+    
+    if isinstance(error, app_commands.CheckFailure):
+        await interaction.response.send_message("<:Pizza_Angry:967482622194372650> You're not allowed to do that.", ephemeral=True)
+    elif isinstance(error, errors.ColourError):
+        await send("You inputted a colour wrong!")
+    elif isinstance(error, errors.SpriteNotFound):
+        await send(f"Sprite `{error.sprite}` could not be found.")
+    elif isinstance(error, errors.LayerNotFound):
+        await send(f"Layer `{error.layer}` could not be found.")
+    elif isinstance(error, errors.FrameNotFound):
+        await send(f"Frame `{error.frame}` could not be found.")
+    else:
+        await send("<:Pizza_Depressaroli:967482279670718474> Something went wrong.")
+        raise error
+
+# Commands
+# Function that creates and sends dogs, used by dog and random_dog
 async def make_dog(interaction: discord.Interaction,
         expression: str, clothes: str, hat: str, hair: str="0", hat2: str="None",
         body_col: str="#ffffff", clothes_col: str="#ffffff", hat_col: str="#ffffff",
@@ -222,15 +118,14 @@ async def make_dog(interaction: discord.Interaction,
     base_size = (750, 750)
 
     # -- Animation _B -- #
-    im = await colour_image(await sprites["Dog_idle_B"].layer.load_frame(0, resize=base_size), body_col)
+    im = await sprites["Dog_idle_B"].layer.load_frame(0, resize=base_size, colour=body_col)
 
     if clothes != "Custom":
         # -- Clothing -- #
         if not sprites.body.is_frame(clothes):
             await interaction.followup.send(f"<:Pizza_OhGod:967483357388759070> `{clothes}` is not a clothing!")
             return
-        im2 = await sprites.body.load_frame(clothes, resize=base_size) # Clothes
-        im2 = await colour_image(im2, clothes_col)
+        im2 = await sprites.body.load_frame(clothes, resize=base_size, colour=clothes_col) # Clothes
         im.alpha_composite(im2)
     else:
         # -- Custom Clothing -- #
@@ -247,26 +142,22 @@ async def make_dog(interaction: discord.Interaction,
 
     # -- Clothing _0 -- #
     if sprites.body2.is_frame(clothes+"_0"):
-        im2 = await sprites.body2.load_frame(clothes + "_0", resize=base_size)
-        im2 = await colour_image(im2, hat_col)
+        im2 = await sprites.body2.load_frame(clothes + "_0", resize=base_siz, colour=hat_col)
         im.alpha_composite(im2)
 
     # -- Animation _A -- #
-    im2 = await sprites["Dog_idle_A"].layer.load_frame(0, resize=base_size)
-    im2 = await colour_image(im2, body_col)
+    im2 = await sprites["Dog_idle_A"].layer.load_frame(0, resize=base_size, colour=body_col)
     im.alpha_composite(im2)
 
     # -- Clothing _1 -- #
     if sprites.body2.is_frame(clothes+"_1"):
-        im2 = await sprites.body2.load_frame(clothes+"_1", resize=base_size)
-        im2 = await colour_image(im2, hat_col)
+        im2 = await sprites.body2.load_frame(clothes+"_1", resize=base_size, colour=hat_col)
         im.alpha_composite(im2)
     
     # -- Neck Hats -- #
     for h in [hat,hat2]:
         if h in extraHats:
-            im2 = await sprites.body2.load_frame(h+"_1", resize=base_size)
-            im2 = await colour_image(im2, hat_col)
+            im2 = await sprites.body2.load_frame(h+"_1", resize=base_size, colour=hat_col)
             im.alpha_composite(im2)
 
     # -- Expression -- #
@@ -274,25 +165,22 @@ async def make_dog(interaction: discord.Interaction,
         if not sprites.expression.is_frame(expression):
             await interaction.followup.send(f"<:Pizza_OhGod:967483357388759070> `{expression}` is not an expression!")
             return
-        im2 = await sprites.expression.load_frame(expression, resize=base_size)
+        im2 = await sprites.expression.load_frame(expression, resize=base_size, colour=body_col)
     else:
-        im3 = await sprites.head.load_frame(0)
+        im3 = await sprites.head.load_frame(0, colour=body_col)
         im2 = Image.new("RGBA", base_size)
         im2.paste(im3, box=(150, 50))
-    im2 = await colour_image(im2, body_col)
     im.alpha_composite(im2)    
 
     # -- Clothing _2 -- #
     if sprites.body2.is_frame(clothes+"_2"):
-        im2 = await sprites.body2.load_frame(clothes+"_2", resize=base_size)
-        im2 = await colour_image(im2, clothes_col)
+        im2 = await sprites.body2.load_frame(clothes+"_2", resize=base_size, colour=clothes_col)
         im.alpha_composite(im2)
     
     # -- Hats _1 -- #
     for h in [hat,hat2]:
         if sprites.hat.is_frame(h+"_1"): # Behind hair part of hat (only used for horns)
-            im2 = await sprites.hat.load_frame(h+"_1", resize=base_size)
-            im2 = await colour_image(im2, hat_col)
+            im2 = await sprites.hat.load_frame(h+"_1", resize=base_size, colour=hat_col)
             im.alpha_composite(im2)
 
     # -- Hair -- #
@@ -300,8 +188,7 @@ async def make_dog(interaction: discord.Interaction,
         if not sprites.hair.is_frame(hair):
             await interaction.followup.send(f"<:Pizza_OhGod:967483357388759070> `{hair}` is not a hair!")
             return
-        im2 = await sprites.hair.load_frame(hair, resize=base_size)
-        im2 = await colour_image(im2, body_col)
+        im2 = await sprites.hair.load_frame(hair, resize=base_size, colour=body_col)
         im.alpha_composite(im2)
 
     # -- Hat -- #
@@ -310,8 +197,7 @@ async def make_dog(interaction: discord.Interaction,
             if h == "None" or h in extraHats:
                 continue
             if h != "Custom":
-                im2 = await sprites.hat.load_frame(h, resize=base_size)
-                im2 = await colour_image(im2, hat_col)
+                im2 = await sprites.hat.load_frame(h, resize=base_size, colour=hat_col)
                 im.alpha_composite(im2)
             else:
                 if not custom_hat:
@@ -325,8 +211,8 @@ async def make_dog(interaction: discord.Interaction,
                 im.alpha_composite(await colour_image(im3, hat_col))
 
     async def do_ear():
-        im2 = await sprites["Dog_idle_ear"].layer.load_frame(0, resize=base_size)
-        im.alpha_composite(await colour_image(im2, body_col))
+        im2 = await sprites["Dog_idle_ear"].layer.load_frame(0, resize=base_size, colour=body_col)
+        im.alpha_composite(im2)
 
     for h in [hat, hat2]:
         if h == "None" or h == "Custom" or h in extraHats:
@@ -349,13 +235,23 @@ async def make_dog(interaction: discord.Interaction,
     await interaction.followup.send(content=f"Dog:\n`/dog expression:{expression} clothes:{clothes} hat:{hat} hair:{hair} hat2:{hat2} body_col:{('#%02x%02x%02x' % body_col) if isinstance(body_col, tuple) else body_col} clothes_col:{('#%02x%02x%02x' % clothes_col) if isinstance(clothes_col, tuple) else clothes_col} hat_col:{('#%02x%02x%02x' % hat_col) if isinstance(hat_col, tuple) else hat_col}`{extra_text}", file=file)
 
 @tree.command(name="random_dog", description="Make a random dog!")
-@app_commands.describe(use_palettes="Only use colours from the game.", limit_to_one_palette="Choose one palette from the game and use colours from it.", add_hat2="Add a random hat2")
-async def random_dog(interaction: discord.Interaction, use_palettes: bool=True, limit_to_one_palette: bool=False, add_hat2: bool=False):
+@app_commands.describe(use_palettes="Only use colours from the game. Default: True", limit_to_one_palette="Choose one palette from the game and use colours from it. Default: False", palette="Specify palette to be used with limit_to_one_palette. Default: Random" , add_hat2="Add a random hat2. Default: False")
+async def random_dog(interaction: discord.Interaction, use_palettes: bool=True, limit_to_one_palette: bool=False, palette: str=None, add_hat2: bool=False):
     chosen = None
     if use_palettes:
-        if limit_to_one_palette:
-            chosen = random.choice(randomablePalettes)
-        cols = all_colours if not limit_to_one_palette else palettes[chosen]
+        if limit_to_one_palette: # Single palette limited
+            if palette != None and palette.lower() != "random": # Specified palette
+                palette = to_titlecase(palette)
+
+                if palette in paletteAliases:
+                    chosen = paletteAliases[palette]
+                else:
+                    return await interaction.response.send("Incorrect palette.")
+            else:
+                chosen = random.choice(randomablePalettes)
+            cols = palettes[chosen]
+        else: # Not single palette limited
+            cols = all_colours
         colone = tuple(random.choice(cols))
         coltwo = tuple(random.choice(cols))
         colthree = tuple(random.choice(cols))
@@ -384,6 +280,7 @@ async def dog(interaction: discord.Interaction,
     ):
     await make_dog(interaction, expression, clothes, hat, hair, hat2, body_col, clothes_col, hat_col, custom_clothes, custom_hat)
 
+# dog autocompletes
 @dog.autocomplete("clothes")
 async def clothes_autocomplete(interaction: discord.Interaction, current: str):
     ls = sorted(sprites.body.get_frames() + ["Custom"])
@@ -407,6 +304,7 @@ async def hair_autocomplete(interaction: discord.Interaction, current:str):
     ls = sorted(sprites.hair.get_frames())
     return [app_commands.Choice(name=i, value=i) for i in ls if current.lower() in i.lower()][:25]
 
+# Sprite command
 @tree.command(description="Show a sprite.")
 @app_commands.describe(
     sprite="The sprite to show", animated="If True, sends an animated gif", animation_name="Name of the animation to use, get a list of them for a sprite using /animations.", animation_fps="If animated. Sets the FPS of the animation (max 50)",
@@ -498,8 +396,7 @@ async def sprite(interaction: discord.Interaction,
     for frame in frames:
         f = frame
         filePath = Path(sprite.layer.root + f"{str(frame)}.png")
-        im = await sprite.layer.load_frame(frame)
-        im = await colour_image(im, colour_1)
+        im = await sprite.layer.load_frame(frame, colour=colour_1)
         for i in sorted(layers[1:]):
             if isinstance(i, Layer):
                 layer = i
@@ -510,13 +407,13 @@ async def sprite(interaction: discord.Interaction,
                 f = frame
                 if layer.offset:
                     f -= layer.offset
-                im2 = await layer.load_frame(f, anim=animation_name)
+                col = colour_2 if i == "2" else colour_3
+                im2 = await layer.load_frame(f, anim=animation_name, colour=col)
                 im2n = numpy.array(im2)
                 im2n = numpy.where(im2n[:, :, 3] > 0)
                 if im2n[0].size == 0 and im2n[1].size == 0:
-                    im2 = await layer.load_frame(f)
-                col = colour_2 if i == "2" else colour_3
-                im.alpha_composite(await colour_image(im2, col))
+                    im2 = await layer.load_frame(f, colour=col)
+                im.alpha_composite(im2)
         if crop_transparency:
             imnp = numpy.array(im)
             imnp = numpy.where(imnp[:, :, 3] > 0) # Non transparent pixels
@@ -679,7 +576,9 @@ async def palette(interaction: discord.Interaction, area_name: str=None, code_na
     file = discord.File(fp, filename="palette.png")
     await interaction.response.send_message(f"{palette_text}\n`{'`, `'.join([('#%02x%02x%02x' % i) for i in colours])}`", file=file)
 
+# Palette autocompletes
 @palette.autocomplete("area_name")
+@random_dog.autocomplete("palette")
 async def area_name_autocomplete(interaction: discord.Interaction, current: str):
     lst = [i for i in sorted(
         [i for i in paletteAliases.keys()] + ["Random"]
@@ -692,21 +591,24 @@ async def code_name_autocomplete(interaction: discord.Interaction, current: str)
         [i for i in palettes.keys()] + ["random"]
     ) if current in i][:25]
 
+# Other simple/owner commands
 @tree.command(description="Send a picture of hair to number.")
 async def hair(interaction: discord.Interaction):
     await interaction.response.send_message(content="https://media.discordapp.net/attachments/967965561361428490/1004109210151301120/unknown.png", ephemeral=True)
 
-def is_me():
+# Checks if user is owner
+def is_owner():
     def predicate(interaction: discord.Interaction) -> bool:
         return interaction.user.id == client.ownerid
     return app_commands.check(predicate)
 
 @tree.command(description="Death.")
-@is_me()
+@is_owner()
 async def die(interaction: discord.Interaction):
     await interaction.response.send_message(content="I hath been slayn.")
     await client.close()
 
+# Modal for the exec command input and processing.
 class ExecModal(discord.ui.Modal, title="Execute Code!"):
     code = discord.ui.TextInput(label="Code!", style=discord.TextStyle.long)
 
@@ -727,7 +629,7 @@ class ExecModal(discord.ui.Modal, title="Execute Code!"):
         env.update(globals())
 
         execcode = textwrap.indent(self.code.value, "    ")
-        execcode = f"async def func():\n{code}"
+        execcode = f"async def func():\n{execcode}"
 
         try:
             exec(execcode, env)
@@ -736,7 +638,7 @@ class ExecModal(discord.ui.Modal, title="Execute Code!"):
             raise error
             return
 
-        await interaction.followup.send(f"Executing:\n```py\n{code}\n```", ephemeral=True)
+        await interaction.followup.send(f"Executing:\n```py\n{self.code.value}\n```", ephemeral=True)
 
         stdout = StringIO()
         func = env["func"]
@@ -754,11 +656,11 @@ class ExecModal(discord.ui.Modal, title="Execute Code!"):
                 client.previous_exec = value
                 await interaction.followup.send(value)
 
+# Just sends the exec modal
 @tree.command(name="exec", description="HACKING CODING.")
-@is_me()
+@is_owner()
 async def execute(interaction: discord.Interaction):
     await interaction.response.send_modal(ExecModal())
 
-client.previous_exec = None
-client.ownerid = 0
+# run.
 client.run(TOKEN)
