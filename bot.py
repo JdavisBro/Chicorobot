@@ -102,7 +102,7 @@ async def command_error(interaction: discord.Interaction, error):
 # Commands
 # Function that creates and sends dogs, used by dog and random_dog
 async def make_dog(interaction: discord.Interaction,
-        expression: str, clothes: str, hat: str, hair: str="0", hat2: str="None",
+        expression: str, clothes: str, hat: str, hair: str="Simple", hat2: str="None",
         body_col: str="#ffffff", clothes_col: str="#ffffff", hat_col: str="#ffffff",
         custom_clothes: discord.Attachment=None, custom_hat: discord.Attachment=None,
         extra_text: str=""
@@ -375,19 +375,19 @@ async def sprite(interaction: discord.Interaction,
             f = use_frame
             namestr = True
         if namestr and sprite.layer.frames: # The gave us a str but we only have numbered frames
-            await msg.edit("Invalid frame. Use `/frames` to check available frames!")
+            await msg.edit(content="Invalid frame. Use `/frames` to check available frames!")
             return
         elif not namestr and not sprite.layer.frames: # They gave us a number but we only have string frames
-            await msg.edit("Invalid frame. Use `/frames` to check available frames!")
+            await msg.edit(content="Invalid frame. Use `/frames` to check available frames!")
             return
         if namestr:
             if f not in sprite.layer.get_frames():
-                await msg.edit("Invalid frame. Use `/frames` to check available frames!")
+                await msg.edit(content="Invalid frame. Use `/frames` to check available frames!")
                 return
             frames = [f]
         else:
             if f >= len(frames):
-                await msg.edit("Invalid frame. Use `/frames` to check available frames!")
+                await msg.edit(content="Invalid frame. Use `/frames` to check available frames!")
                 return
             frames = [f]
 
