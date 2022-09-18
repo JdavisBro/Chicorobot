@@ -274,7 +274,7 @@ async def random_dog(interaction: discord.Interaction, use_palettes: bool=True, 
 
 @tree.command(name="dog", description="Make a Dog!")
 async def dog(interaction: discord.Interaction,
-        expression: str, clothes: str, hat: str, hair: str="0", hat2: str="None",
+        expression: str, clothes: str, hat: str, hair: str="Simple", hat2: str="None",
         body_col: str="#ffffff", clothes_col: str="#ffffff", hat_col: str="#ffffff",
         custom_clothes: discord.Attachment=None, custom_hat: discord.Attachment=None
     ):
