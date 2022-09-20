@@ -5,7 +5,7 @@ from typing import Union
 
 from PIL import Image, ImageChops
 
-import errors
+from chicorobot import errors
 
 __all__ = (
     "Sprites",
@@ -142,5 +142,5 @@ class Layer():
             return im
         return await colour_image(im, colour)
 
-with open("sprites.json") as f:
+with open("data/sprites.json") as f:
     sprites = Sprites(json.load(f))

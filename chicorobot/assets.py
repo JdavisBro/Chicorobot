@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-with Path("palettes.json").open("r") as f:
+with Path("data/palettes.json").open("r") as f:
     palettes = json.load(f)
 
 # with Path("dog_animations.json").open("r") as f:
@@ -13,7 +13,6 @@ for v in palettes.values():
 all_colours += [[242, 0, 131],[217, 199, 190]] # Pickle and dust!
 
 randomablePalettes = [i for i in palettes.keys() if i not in ["boss1", "boss2", "town_spooky", "town_spooky2", "town_postgame"]]
-
 
 hairHats = (
     "Aviators",

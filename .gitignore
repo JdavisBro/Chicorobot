@@ -3,12 +3,9 @@
 venv
 *.pyc
 **/__pycache__
+.vscode
 
 Export_Sprites/
-sprites.json
 TOKEN.txt
 update.sh
 imagemagick
-
-# for now
-fonts

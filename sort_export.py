@@ -2,6 +2,10 @@ import json
 import shutil
 from pathlib import Path
 
+#
+# Sorts an Export_Sprites into a sprites.json, run this to generate a new sprites.json
+#
+
 dogClothes = [
     "Overalls",
     "Flower Dress",
@@ -219,7 +223,7 @@ def main():
             add_sprite(impath)
         else:
             add_deco(impath)
-    with open("sprites.json", "w+") as f:
+    with open("data/sprites.json", "w+") as f:
         json.dump(spritesDict, f)
 
 def add_deco(path):
