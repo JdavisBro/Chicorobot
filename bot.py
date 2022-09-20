@@ -65,8 +65,8 @@ class Chicorobot(discord.Client):
         self.ownerid = 0
 
     async def setup_hook(self):
-        guild = discord.Object(473976215301128193) # msmg
-        #guild = discord.Object(947898290735833128)
+        #guild = discord.Object(473976215301128193) # msmg
+        guild = discord.Object(947898290735833128)
 
         tree.copy_global_to(guild=guild)
         await tree.sync(guild=guild)
