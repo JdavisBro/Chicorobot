@@ -7,6 +7,8 @@ import math
 import tempfile
 import textwrap
 import zipfile
+import zlib
+from base64 import b64decode, b64encode
 from io import BytesIO, StringIO
 from pathlib import Path
 from contextlib import redirect_stdout
@@ -57,16 +59,19 @@ class Chicorobot(discord.Client):
     def __init__(self):
         intents = discord.Intents.default()
         intents.members = True
+        intents.message_content = True
         super().__init__(intents=intents)
         self.previous_exec = None
         self.ownerid = 0
 
     async def setup_hook(self):
-        #guild = discord.Object(473976215301128193) # msmg
-        guild = discord.Object(947898290735833128)
+        guild = discord.Object(473976215301128193) # msmg
+        #guild = discord.Object(947898290735833128)
 
         tree.copy_global_to(guild=guild)
         await tree.sync(guild=guild)
+
+        self.add_view(SpriteModificationView(animated=False))
         
         appinfo = await client.application_info()
         client.ownerid = appinfo.owner.id
@@ -305,17 +310,29 @@ async def hair_autocomplete(interaction: discord.Interaction, current:str):
     return [app_commands.Choice(name=i, value=i) for i in ls if current.lower() in i.lower()][:25]
 
 # Sprite command
-@tree.command(description="Show a sprite.")
-@app_commands.describe(
-    sprite="The sprite to show", animated="If True, sends an animated gif", animation_name="Name of the animation to use, get a list of them for a sprite using /animations.", animation_fps="If animated. Sets the FPS of the animation (max 50)",
-    crop_transparency="Removes any blank area around the image", use_frame="If not animated, choose a frame of the sprite to send (starts at 0)", output_zip="Outputs animation as a zip of PNGs for high quality."
-)
-async def sprite(interaction: discord.Interaction,
+def del_temp(temp):
+    if temp:
+        try:
+            shutil.rmtree(temp)
+        except PermissionError:
+            print("Failed to delete file.")
+        else:
+            print(f"Deleted temp: {str(temp)}")
+
+default_data = {
+    "user": 0,
+    "sprite": "sprMarioRpg", "animated": False, "animation_name": None, "animation_fps": 10,
+    "crop_transparency": True, "use_frame": None, "output_zip": False,
+    "colour_1": "#ffffff", "colour_2": "#ffffff", "colour_3": "#ffffff"
+}
+
+async def create_sprite(
+        interaction: discord.Interaction,
         sprite: str, animated: bool=False, animation_name: str=None, animation_fps: int=10,
         crop_transparency: bool=True, use_frame: str=None, output_zip: bool=False,
         colour_1: str="#ffffff", colour_2: str="#ffffff", colour_3: str=None
     ):
-    await interaction.response.defer(thinking=True)
+    await interaction.response.defer()
     sprite = sprite.replace(" ","_")
 
     colour_3 = colour_3 or colour_1
@@ -366,7 +383,7 @@ async def sprite(interaction: discord.Interaction,
         temp = Path(temp)
         print(f"Making temp: {str(temp)}")
 
-    if use_frame: # User specified frame
+    if use_frame and not animated: # User specified frame
         f = 0
         try:
             f = int(use_frame)
@@ -437,20 +454,29 @@ async def sprite(interaction: discord.Interaction,
                 ims = im
             break
 
+    data = {
+        "user": interaction.user.id,
+        "sprite": name, "animated": animated, "animation_name": animation_name, "animation_fps": animation_fps,
+        "crop_transparency": crop_transparency, "use_frame": use_frame, "output_zip": output_zip,
+        "colour_1": colour_1, "colour_2": colour_2, "colour_3": colour_3
+    }
+
+    for i in default_data.keys():
+        if data[i] == default_data[i]:
+            data.pop(i)
+
+    data = json.dumps(data, separators=(",",":"))
+    data = zlib.compress(data.encode("utf-8"))
+    data = b64encode(data).decode("utf-8")
+    data = f"[](${data}$)"
+
     if not animated:
         imbyte = BytesIO()
         ims.save(imbyte, "PNG")
         imbyte.seek(0)
+        out = f"{name} frame `{f}`{' (one frame sprite, animation not required)' if wasanimated else ''}:{data}\n"
         file = discord.File(imbyte, f"{name}..png")
-        await msg.edit(content=f"{name} frame `{f}`{' (one frame sprite, animation not required)' if wasanimated else ''}:", attachments=[file])
-
-    def del_temp():
-        try:
-            shutil.rmtree(temp)
-        except PermissionError:
-            print("Failed to delete file.")
-        else:
-            print(f"Deleted temp: {str(temp)}")
+        return out, file, msg, None
 
     giferror = False
 
@@ -467,10 +493,9 @@ async def sprite(interaction: discord.Interaction,
             print(f"GIF CONVERSION ERROR: {await process.stdout.read()}")
             giferror = True
         else:
+            out = f"{name} at {animation_fps} fps:{data}\n"
             file = discord.File(temp / "out.gif", f"{name}.gif")
-            await msg.edit(content=f"{name} at {animation_fps} fps:", attachments=[file])
-            del file # Release out.gif
-            del_temp()
+            return out, file, msg, temp
 
     if animated and (output_zip or giferror):
         await msg.edit(content=f"{'GIF Conversion failed, ' if giferror else ''}Zipping PNGs (2/2)")
@@ -480,9 +505,163 @@ async def sprite(interaction: discord.Interaction,
                 zipf.write(i, i.relative_to(temp))
         f.seek(0)
         file = discord.File(f, f"{name}.zip")
-        out = f"{name}:" if not giferror else f"{name} (Zip, GIF conversion failed):"
-        await msg.edit(content=out, attachments=[file])
-        del_temp()
+        out = f"{name}:{data}" if not giferror else f"{name} (Zip, GIF conversion failed):{data}\n"
+        return out, file, msg, temp
+
+async def get_data(msg):
+    i = msg.content.index("$") + 1
+    data1 = msg.content[i:msg.content.index("$", i)]
+    data1 = b64decode(data1.encode("utf-8"))
+    data1 = zlib.decompress(data1).decode("utf-8")
+    data1 = json.loads(data1)
+
+    data = default_data.copy()
+    data.update(data1)
+    return data
+
+class RetryModalView(discord.ui.View):
+    def __init__(self, modal):
+        super().__init__()
+        self.modal = modal
+    
+    @discord.ui.button(label="Re-enter", emoji="🔁")
+    async def reenter(self, interaction, button):
+        for i in self.modal.children:
+            i.default = i.value
+        await interaction.response.send_modal(self.modal)
+        await (await interaction.original_response()).delete()
+
+class SpriteInputModal(discord.ui.Modal, title="Input!"):
+    def __init__(self, input_type: int, data: dict, message: discord.Message):
+        super().__init__()
+        self.message = message
+        self.input_type = input_type
+        self.data = data
+        self.original_user = data["user"]
+        self.data.pop("user")
+        if input_type == 0: # set_frame
+            self.frame = discord.ui.TextInput(label="Frame Number", default=data["use_frame"])
+            self.add_item(self.frame)
+        elif input_type == 1: # set_colours
+            self.colour_1 = discord.ui.TextInput(label="Colour 1", default=data["colour_1"])
+            self.colour_2 = discord.ui.TextInput(label="Colour 2", default=data["colour_2"])
+            self.colour_3 = discord.ui.TextInput(label="Colour 3", default=data["colour_3"])
+            [self.add_item(i) for i in [self.colour_1, self.colour_2, self.colour_3]]
+        elif input_type == 2: # other_options
+            self.animation_name = discord.ui.TextInput(label="Animation Name (or `none`)", default=str(data["animation_name"]))
+            self.animation_fps = discord.ui.TextInput(label="Animation FPS", default=data["animation_fps"])
+            self.output_zip = discord.ui.TextInput(label="Output ZIP (`true` or `false`)", default=str(data["output_zip"]))
+            self.crop_transparency = discord.ui.TextInput(label="Crop Transparency (`true` or `false`)", default=str(data["crop_transparency"]))
+            [self.add_item(i) for i in [self.animation_name, self.animation_fps, self.output_zip, self.crop_transparency]]
+
+    async def on_submit(self, interaction):
+        if self.input_type == 0: # set_frame
+            self.data["animated"] = False
+            self.data["output_zip"] = False
+            try:
+                self.data["use_frame"] = int(self.frame.value)
+            except ValueError:
+                self.frame.label = "Frame Number - Invalid Number"
+                return await interaction.response.send_message("Invalid Number", ephemeral=True, view=RetryModalView(self))
+        elif self.input_type == 1: # set_colours
+            hex_fail = False
+            for i, item in enumerate(self.children):
+                v = item.value.lstrip("#")
+                try:
+                    int(v, base=16)
+                except ValueError:
+                    v = "epic hex fail"
+                if len(v) != 6: # epic hex falure
+                    if not item.label.endswith("Hex"):
+                        item.label = item.label + " - Invalid Hex"
+                    hex_fail = True
+                else: # epic hex success
+                    if item.label.endswith("Hex"):
+                        item.label = item.label.replace(" - Invalid Hex", "") # In case the user had an epic hex fail previously and has another, separate one
+                    self.data[f"colour_{i+1}"] = item.value
+            if hex_fail:
+                return await interaction.response.send_message("Invalid Hex", ephemeral=True, view=RetryModalView(self))
+        elif self.input_type == 2:
+            if self.animation_name.value.lower() == "none":
+                self.data["animation_name"] = None
+            else:
+                self.data["animation_name"] = self.animation_name.value
+            try:
+                self.data["animation_fps"] = int(self.animation_fps.value)
+            except ValueError:
+                self.animation_fps.label = "Animation FPS - Invalid Number"
+                return await interaction.response.send_message("Invalid Number", ephemeral=True, view=RetryModalView(self))
+            self.data["output_zip"] = self.output_zip.value.lower().strip() == "true" # Default to false on anything else
+            self.data["crop_transparency"] = self.crop_transparency.value.lower().strip() != "false" # Default to true on anything else
+        out, file, msg, temp = await create_sprite(interaction, **self.data)
+        if interaction.user.id == self.original_user: # original user
+            await msg.delete()
+            await self.message.edit(content=out, attachments=[file], view=SpriteModificationView(animated=(temp is not None)))
+        else:
+            await msg.edit(content=out, attachments=[file], view=SpriteModificationView(animated=(temp is not None)))
+        file.close()
+        del_temp(temp)
+
+class SpriteModificationView(discord.ui.View):
+    def __init__(self, animated):
+        super().__init__(timeout=None)
+        if animated:
+            self.animate.label = "Make Image"
+            self.animate.emoji = "🖼️"
+
+    async def send_modal(self, interaction, type):
+        data = await get_data(interaction.message)
+        modal = SpriteInputModal(type, data, interaction.message)
+        await interaction.response.send_modal(modal)
+
+    @discord.ui.button(label="Make Animated", emoji="📽️", custom_id="spritemod:animate")
+    async def animate(self, interaction, button):
+        data = await get_data(interaction.message)
+        user = data["user"]
+        data.pop("user")
+        data["animated"] = not data["animated"]
+        data["output_zip"] = False
+        out, file, msg, temp = await create_sprite(interaction, **data)
+        if interaction.user.id == user: # original user
+            await msg.delete()
+            await interaction.message.edit(content=out, attachments=[file], view=SpriteModificationView(animated=(temp is not None)))
+        else:
+            await msg.edit(content=out, attachments=[file], view=SpriteModificationView(animated=(temp is not None)))
+        file.close()
+        del_temp(temp)
+
+    @discord.ui.button(label="Change Frame", emoji="🎞️", custom_id="spritemod:set_frame")
+    async def set_frame(self, interaction, button):
+        await self.send_modal(interaction, 0)
+
+    @discord.ui.button(label="Set Colours", emoji="🖌️", custom_id="spritemod:set_colours")
+    async def set_colours(self, interaction, button):
+        await self.send_modal(interaction, 1)
+
+    @discord.ui.button(label="Other Options", emoji="⚙️", custom_id="spritemod:other_options")
+    async def other_options(self, interaction, button):
+        await self.send_modal(interaction, 2)
+
+@tree.command(description="Show a sprite.")
+@app_commands.describe(
+    sprite="The sprite to show", animated="If True, sends an animated gif", animation_name="Name of the animation to use, get a list of them for a sprite using /animations.", animation_fps="If animated. Sets the FPS of the animation (max 50)",
+    crop_transparency="Removes any blank area around the image", use_frame="If not animated, choose a frame of the sprite to send (starts at 0)", output_zip="Outputs animation as a zip of PNGs for high quality."
+)
+async def sprite(
+        interaction: discord.Interaction,
+        sprite: str, animated: bool=False, animation_name: str=None, animation_fps: int=10,
+        crop_transparency: bool=True, use_frame: str=None, output_zip: bool=False,
+        colour_1: str="#ffffff", colour_2: str="#ffffff", colour_3: str=None
+    ):
+    out, file, msg, temp = await create_sprite(
+        interaction,
+        sprite, animated, animation_name, animation_fps,
+        crop_transparency, use_frame, output_zip,
+        colour_1, colour_2, colour_3
+    )
+    await msg.edit(content=out, attachments=[file], view=SpriteModificationView(animated=(temp is not None))) # idk if i wanna add create_sprite returning if it is animated (it can change with 1 frame sprites) but there being a temp is a 100% way to know
+    file.close()
+    del_temp(temp)
 
 @tree.command(description="Lists animations for a specific sprite")
 async def animations(interaction: discord.Interaction, sprite: str):
