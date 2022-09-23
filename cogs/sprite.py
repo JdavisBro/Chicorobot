@@ -373,6 +373,9 @@ class SpriteCog(commands.Cog):
         self.ctx_menu = app_commands.ContextMenu(name="Get Sprite Info", callback=self.sprite_info)
         bot.tree.add_command(self.ctx_menu)
 
+    async def cog_unload(self):
+        self.bot.tree.remove_command(self.ctx_menu.name, type=self.ctx_menu.type)
+
     @app_commands.command(description="Show a sprite.")
     @app_commands.describe(
         sprite="The sprite to show", animated="If True, sends an animated gif", animation_name="Name of the animation to use, get a list of them for a sprite using /animations.", animation_fps="If animated. Sets the FPS of the animation (max 50)",
