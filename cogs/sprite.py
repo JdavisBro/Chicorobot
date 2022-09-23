@@ -4,6 +4,7 @@ import shutil
 import sys
 import random
 import tempfile
+import zipfile
 import zlib
 from typing import Union
 from base64 import b64decode, b64encode
