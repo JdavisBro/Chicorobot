@@ -370,6 +370,8 @@ async def create_sprite(
 class SpriteCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.ctx_menu = app_commands.ContextMenu(name="Get Sprite Info", callback=self.sprite_info)
+        bot.tree.add_command(self.ctx_menu)
 
     @app_commands.command(description="Show a sprite.")
     @app_commands.describe(
@@ -392,3 +394,19 @@ class SpriteCog(commands.Cog):
         await msg.edit(content=out, attachments=[file], view=SpriteModificationView(animated=(temp is not None))) # idk if i wanna add create_sprite returning if it is animated (it can change with 1 frame sprites) but there being a temp is a 100% way to know
         file.close()
         del_temp(temp)
+
+    # Get Sprite Info Context Menu
+    async def sprite_info(self, interaction, message: discord.Message):
+        try:
+            data = await get_data(message)
+        except ValueError:
+            return await interaction.response.send_message("Sprite not found in the message.", ephemeral=True)
+        embed = discord.Embed(title="Sprite Info")
+        inline = False
+        for key in ["user", "sprite", "use_frame", "output_zip", "animated", "animation_name", "animation_fps", "colour_1", "colour_2", "colour_3"]:
+            value = data[key]
+            if key == "user":
+                value = f"<@{value}>"
+            embed.add_field(name=to_titlecase(key.replace("_", " ")), value=f"`{value}`", inline=inline)
+            inline = True
+        await interaction.response.send_message(embed=embed, ephemeral=True)
