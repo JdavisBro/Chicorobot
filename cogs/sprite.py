@@ -80,10 +80,13 @@ class SpriteInputModal(discord.ui.Modal, title="Input!"):
         self.message = message
         self.input_type = input_type
         self.data = data
-        self.original_user = data["user"]
-        self.data.pop("user")
+        self.original_user = self.data.pop("user")
         if input_type == 0: # set_frame
-            self.frame = discord.ui.TextInput(label="Frame Number (0 indexed)", default=data["use_frame"])
+            frames = sprites[data["sprite"]].layer.get_frames()
+            minn, maxn = 0, 0
+            if isinstance(frames[0], int):
+                minn, maxn = min(frames), max(frames)
+            self.frame = discord.ui.TextInput(label=f"Frame Number (between {minn} and {maxn} inclusive)", default=data["use_frame"])
             self.add_item(self.frame)
         elif input_type == 1: # set_colours
             self.colour_1 = discord.ui.TextInput(label="Colour 1", default=data["colour_1"])
@@ -376,7 +379,7 @@ async def create_sprite(
 class SpriteCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.ctx_menu = app_commands.ContextMenu(name="Get Sprite Info", callback=self.sprite_info)
+        self.ctx_menu = app_commands.ContextMenu(name="Get Sprite Info", callback=self.sprite_info, extras={"ephemeral": True})
         bot.tree.add_command(self.ctx_menu)
 
     async def cog_unload(self):

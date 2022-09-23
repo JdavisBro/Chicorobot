@@ -63,6 +63,7 @@ async def on_message(message): # Overide default Bot on_message so text commands
 
 @tree.error
 async def command_error(interaction: discord.Interaction, error):
+    ephemeral = interaction.command.extras["ephemeral"] if "ephemeral" in interaction.command.extras else False
     error = getattr(error, "original", error)
     
     send = interaction.response.send_message if not interaction.response.is_done() else interaction.followup.send
@@ -70,15 +71,15 @@ async def command_error(interaction: discord.Interaction, error):
     if isinstance(error, app_commands.CheckFailure):
         await interaction.response.send_message("<:Pizza_Angry:967482622194372650> You're not allowed to do that.", ephemeral=True)
     elif isinstance(error, errors.ColourError):
-        await send("You inputted a colour wrong!")
+        await send("You inputted a colour wrong!", ephemeral=ephemeral)
     elif isinstance(error, errors.SpriteNotFound):
-        await send(f"Sprite `{error.sprite}` could not be found.")
+        await send(f"Sprite `{error.sprite}` could not be found.", ephemeral=ephemeral)
     elif isinstance(error, errors.LayerNotFound):
-        await send(f"Layer `{error.layer}` could not be found.")
+        await send(f"Layer `{error.layer}` could not be found.", ephemeral=ephemeral)
     elif isinstance(error, errors.FrameNotFound):
-        await send(f"Frame `{error.frame}` could not be found.")
+        await send(f"Frame `{error.frame}` could not be found.", ephemeral=ephemeral)
     else:
-        await send("<:Pizza_Depressaroli:967482279670718474> Something went wrong.")
+        await send("<:Pizza_Depressaroli:967482279670718474> Something went wrong.", ephemeral=ephemeral)
         raise error
 
 # run.
