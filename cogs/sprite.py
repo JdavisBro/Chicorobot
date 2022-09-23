@@ -195,6 +195,13 @@ async def create_sprite(
     sprite = sprite.replace(" ","_")
 
     colour_3 = colour_3 or colour_1
+    
+    if isinstance(colour_1, str): # Users COULD put any number of #'s and it'd be a valid colour because of lstrip so to not break anything i'll make sure it's only 1
+        colour_1 = "#" + colour_1.lstrip("#")
+    if isinstance(colour_2, str):
+        colour_2 = "#" + colour_2.lstrip("#")
+    if isinstance(colour_3, str):
+        colour_3 = "#" + colour_3.lstrip("#")
 
     if output_zip and not animated:
         animated = True
@@ -227,7 +234,6 @@ async def create_sprite(
     if len(frames) == 1 and animated:
         animated = False
         wasanimated = True
-
     
     content = "Making Image"
     if animated:
