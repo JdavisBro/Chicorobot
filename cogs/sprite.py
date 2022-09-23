@@ -402,11 +402,11 @@ class SpriteCog(commands.Cog):
         except ValueError:
             return await interaction.response.send_message("Sprite not found in the message.", ephemeral=True)
         embed = discord.Embed(title="Sprite Info")
-        inline = False
         for key in ["user", "sprite", "use_frame", "output_zip", "animated", "animation_name", "animation_fps", "colour_1", "colour_2", "colour_3"]:
             value = data[key]
             if key == "user":
                 value = f"<@{value}>"
-            embed.add_field(name=to_titlecase(key.replace("_", " ")), value=f"`{value}`", inline=inline)
-            inline = True
+            else:
+                value = f"`{value}`"
+            embed.add_field(name=to_titlecase(key.replace("_", " ")), value=value, inline=(key != "user"))
         await interaction.response.send_message(embed=embed, ephemeral=True)
