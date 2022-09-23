@@ -13,3 +13,5 @@ class FrameNotFound(Exception):
 class ColourError(Exception):
     pass
 
+class InvalidFrame(Exception):
+    pass

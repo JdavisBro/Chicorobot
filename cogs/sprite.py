@@ -262,19 +262,19 @@ async def create_sprite(
             namestr = True
         if namestr and sprite.layer.frames: # The gave us a str but we only have numbered frames
             await msg.edit(content="Invalid frame. Use `/frames` to check available frames!")
-            return
+            raise errors.InvalidFrame() # Can't return without 4 vars so i'll just do an error that gets ignored
         elif not namestr and not sprite.layer.frames: # They gave us a number but we only have string frames
             await msg.edit(content="Invalid frame. Use `/frames` to check available frames!")
-            return
+            raise errors.InvalidFrame()
         if namestr:
             if f not in sprite.layer.get_frames():
                 await msg.edit(content="Invalid frame. Use `/frames` to check available frames!")
-                return
+                raise errors.InvalidFrame()
             frames = [f]
         else:
             if f >= len(frames):
                 await msg.edit(content="Invalid frame. Use `/frames` to check available frames!")
-                return
+                raise errors.InvalidFrame()
             frames = [f]
 
     crop = None
@@ -370,7 +370,7 @@ async def create_sprite(
         await msg.edit(content=f"{'GIF Conversion failed, ' if giferror else ''}Zipping PNGs (2/2)")
         f = BytesIO()
         with zipfile.ZipFile(f, "x") as zipf:
-            for i in temp.iterdir():
+            for i in temp.glob("*.png"):
                 zipf.write(i, i.relative_to(temp))
         f.seek(0)
         file = discord.File(f, f"{name}.zip")
