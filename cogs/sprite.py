@@ -87,7 +87,8 @@ class SpriteInputModal(discord.ui.Modal, title="Input!"):
             minn, maxn = 0, 0
             if isinstance(frames[0], int):
                 minn, maxn = min(frames), max(frames)
-            self.frame = discord.ui.TextInput(label=f"Frame Number (between {minn} and {maxn} inclusive)", default=data["use_frame"])
+            self.frame_range = [minn, maxn]
+            self.frame = discord.ui.TextInput(label=f"Frame Number ({minn} to {maxn})", default=data["use_frame"])
             self.add_item(self.frame)
         elif input_type == 1: # set_colours
             self.colour_1 = discord.ui.TextInput(label="Colour 1", default=data["colour_1"])
@@ -105,11 +106,25 @@ class SpriteInputModal(discord.ui.Modal, title="Input!"):
         if self.input_type == 0: # set_frame
             self.data["animated"] = False
             self.data["output_zip"] = False
+            async def invalid_number(not_range=False): 
+                if self.frame.label.endswith("Invalid Number"):
+                    if not_range:
+                        self.frame.label = self.frame.label.replace("Invalid Number", "Out of Range")
+                elif self.frame.label.endswith("Out of Range"):
+                    if not not_range:
+                        self.frame.label = self.frame.label.replace("Out of Range", "Invalid Number")
+                elif not_range:
+                    self.frame.label += " - Out of Range"
+                else:
+                    self.frame.label += " - Invalid Number"
+                await interaction.response.send_message("Out of Range" if not_range else "Invalid Number", ephemeral=True, view=RetryModalView(self))
             try:
-                self.data["use_frame"] = int(self.frame.value)
+                f = int(self.frame.value)
             except ValueError:
-                self.frame.label = "Frame Number (0 indexed) - Invalid Number"
-                return await interaction.response.send_message("Invalid Number", ephemeral=True, view=RetryModalView(self))
+                return await invalid_number()
+            if not (f >= self.frame_range[0] and f <= self.frame_range[1]):
+                return await invalid_number(True)
+            self.data["use_frame"] = f
         elif self.input_type == 1: # set_colours
             hex_fail = False
             for i, item in enumerate(self.children):
