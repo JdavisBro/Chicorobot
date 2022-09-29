@@ -81,14 +81,15 @@ class DogCog(commands.Cog):
 
         # -- Expression -- #
         if expression != "normal":
-            if not sprites.expression.is_frame(expression):
-                await interaction.followup.send(f"<:Pizza_OhGod:967483357388759070> `{expression}` is not an expression!")
-                return
-            im2 = await sprites.expression.load_frame(expression, resize=base_size, colour=body_col)
+            fn = Path("expressions/") / (expression + ".png")
+            if not fn.exists():
+                return await interaction.followup.send(f"<:Pizza_OhGod:967483357388759070> `{expression}` is not an expression!")
+            im3 = Image.open(fn)
+            im3 = await colour_image(im3, body_col)
         else:
             im3 = await sprites.head.load_frame(0, colour=body_col)
-            im2 = Image.new("RGBA", base_size)
-            im2.paste(im3, box=(150, 50))
+        im2 = Image.new("RGBA", base_size)
+        im2.paste(im3, box=(150, 50))
         im.alpha_composite(im2)    
 
         # -- Clothing _2 -- #
@@ -181,7 +182,7 @@ class DogCog(commands.Cog):
             colthree = discord.Colour.random()
         await self.make_dog(
             interaction,
-            random.choice(sprites["Dog_expression"].layer.get_frames()),
+            random.choice(["normal"] + [i.stem for i in Path("expressions/").iterdir()]),
             random.choice(sprites["Dog_body"].layer.get_frames()),
             random.choice([i for i in sprites["Dog_hat"].layer.get_frames() if i != "Horns_1"] + ["None"] + extraHats),
             random.choice(sprites["Dog_hair"].layer.get_frames()),

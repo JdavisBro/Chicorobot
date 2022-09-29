@@ -189,7 +189,7 @@ dogExpressions = [
     "small",
     "closed",
     "grin",
-    "grr",
+    "angry",
     "nervous",
     "gasp",
     "heee",

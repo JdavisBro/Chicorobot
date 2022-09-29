@@ -35,7 +35,7 @@ async def cog(interaction: discord.Interaction, current: str):
 
 # dog autocompletes
 async def expression(interaction: discord.Interaction, current: str):
-    ls = ["normal"] + sorted(sprites.expression.get_frames())
+    ls = ["normal"] + sorted([i.stem for i in Path("expressions/").iterdir()], key=lambda i: i.replace("custom ", "z"))
     return [app_commands.Choice(name=i, value=i) for i in ls if current.lower() in i.lower()][:25]
 
 async def clothes(interaction: discord.Interaction, current: str):

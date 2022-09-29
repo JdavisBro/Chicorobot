@@ -32,3 +32,7 @@ Change the id (`947898290735833128`) to the id of the server you wanna use this 
 run `py bot.py`
 
 Make sure when you make your oauth url you tick app commands.
+
+## Credit
+
+High Res expressions by Plasmaflare
