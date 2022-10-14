@@ -283,8 +283,6 @@ async def create_sprite(
     crop = None
 
     for frame in frames:
-        f = frame
-        filePath = Path(sprite.layer.root + f"{str(frame)}.png")
         im = await sprite.layer.load_frame(frame, colour=colour_1)
         for i in sorted(layers[1:]):
             if isinstance(i, Layer):
