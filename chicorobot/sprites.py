@@ -12,7 +12,8 @@ __all__ = (
     "Sprite",
     "Layer",
     "sprites",
-    "colour_image"
+    "colour_image",
+    "dog_animations"
 )
 
 spr = Path("Export_Sprites/")
@@ -144,3 +145,8 @@ class Layer():
 
 with open("data/sprites.json") as f:
     sprites = Sprites(json.load(f))
+
+with open("data/dog_animations.json") as f:
+    dog_animations = json.load(f)
+
+[dog_animations.pop(i) for i in ["bosshold", "bossgrab", "bossdrop"]] # these do not work currently so i'll delete them!

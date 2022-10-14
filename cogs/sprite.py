@@ -6,7 +6,6 @@ import random
 import tempfile
 import zipfile
 import zlib
-from typing import Union
 from base64 import b64decode, b64encode
 from pathlib import Path
 from io import BytesIO
@@ -19,18 +18,7 @@ import numpy
 from chicorobot import autocomplete
 from chicorobot.sprites import *
 from chicorobot.assets import *
-from chicorobot.utils import to_titlecase
-
-# Check for imagemagick
-imagemagick: Union[Path, str, None] = None
-if sys.platform.startswith("win32") or sys.platform.startswith("cygwin"):
-    imagemagick = shutil.which("magick")
-else:
-    imagemagick = shutil.which("convert")
-if not imagemagick:
-    imagemagick = Path("imagemagick/convert.exe")
-    if not imagemagick.exists():
-        imagemagick = None
+from chicorobot.utils import *
 
 async def setup(bot):
     await bot.add_cog(SpriteCog(bot))

@@ -10,6 +10,10 @@ class FrameNotFound(Exception):
     def __init__(self, frame):
         self.frame = frame
 
+class AnimationNotFound(Exception):
+    def __init__(self, animation):
+        self.animation = animation
+
 class ColourError(Exception):
     pass
 

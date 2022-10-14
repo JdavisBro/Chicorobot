@@ -38,8 +38,8 @@ class Chicorobot(commands.Bot):
         await bot.load_extension("cogs.sprite")
         await bot.load_extension("cogs.dog")
 
-        #guild = discord.Object(473976215301128193) # msmg
-        guild = discord.Object(947898290735833128)
+        guild = discord.Object(473976215301128193) # msmg
+        #guild = discord.Object(947898290735833128)
 
         tree.copy_global_to(guild=guild)
         await tree.sync(guild=guild)
@@ -78,6 +78,8 @@ async def command_error(interaction: discord.Interaction, error):
         await send(f"Layer `{error.layer}` could not be found.", ephemeral=ephemeral)
     elif isinstance(error, errors.FrameNotFound):
         await send(f"Frame `{error.frame}` could not be found.", ephemeral=ephemeral)
+    elif isinstance(error, errors.AnimationNotFound):
+        await send(f"Animation `{error.animation}` could not be found.", ephemeral=ephemeral)
     elif isinstance(error, errors.InvalidFrame):
         return
     else:

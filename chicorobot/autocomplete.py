@@ -8,10 +8,14 @@ async def sprite(interaction: discord.Interaction, current: str): # frames, spri
     lst = sorted(list(sprites.sprites()) + ["Random"])
     return [app_commands.Choice(name=i, value=i) for i in lst if current.lower() in i.lower()][:25]
 
-async def area_name(interaction: discord.Interaction, current: str): # random_dog, palette
+async def area_name(interaction: discord.Interaction, current: str): # palette
     lst = [i for i in sorted(
         [i for i in paletteAliases.keys()] + ["Random"]
     ) if current in i][:25]
+    return [app_commands.Choice(name=i, value=i) for i in lst]
+
+async def random_palette(interaction: discord.Interaction, current: str): # random_dog
+    lst = [i for i in (["None", "Random"] + sorted(paletteAliases.keys())) if current.lower() in i.lower()][:25]
     return [app_commands.Choice(name=i, value=i) for i in lst]
 
 async def code_name(interaction: discord.Interaction, current: str): # palette
@@ -52,3 +56,5 @@ async def hair(interaction: discord.Interaction, current:str):
     ls = sorted(sprites.hair.get_frames())
     return [app_commands.Choice(name=i, value=i) for i in ls if current.lower() in i.lower()][:25]
 
+async def animation(interaction: discord.Interaction, current:str):
+    return [app_commands.Choice(name=i, value=i) for i in dog_animations.keys() if current.lower() in i][:25]
