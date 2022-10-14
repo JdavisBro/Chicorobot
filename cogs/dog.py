@@ -270,7 +270,7 @@ class DogCog(commands.Cog):
                 print(f"GIF CONVERSION ERROR: {await process.stdout.read()}")
                 return await interaction.followup.send(content="Animation Error.")
             file = discord.File(temp / "out.gif", f"Dog.gif")
-        await interaction.followup.send(content=f"Dog:\n`/dog expression:{expression} clothes:{clothes} hat:{hat} hair:{hair} hat2:{hat2} animation:{animation} body_col:{('#%02x%02x%02x' % body_col) if isinstance(body_col, tuple) else body_col} clothes_col:{('#%02x%02x%02x' % clothes_col) if isinstance(clothes_col, tuple) else clothes_col} hat_col:{('#%02x%02x%02x' % hat_col) if isinstance(hat_col, tuple) else hat_col} animated:{animated}`{extra_text}", file=file)
+        await interaction.followup.send(content=f"Dog:\n`/dog expression:{expression} clothes:{clothes} hat:{hat} hair:{hair} hat2:{hat2} animation:{animation} animated:{animated} body_col:{('#%02x%02x%02x' % body_col) if isinstance(body_col, tuple) else body_col} clothes_col:{('#%02x%02x%02x' % clothes_col) if isinstance(clothes_col, tuple) else clothes_col} hat_col:{('#%02x%02x%02x' % hat_col) if isinstance(hat_col, tuple) else hat_col}`{extra_text}", file=file)
         del_temp()
 
     @app_commands.command(name="random_dog", description="Make a random dog!")
