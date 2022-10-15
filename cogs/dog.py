@@ -8,7 +8,7 @@ from io import BytesIO
 import discord
 from discord import app_commands
 from discord.ext import commands
-from PIL import Image
+from PIL import Image, ImageChops
 
 from chicorobot import autocomplete
 from chicorobot.assets import *
@@ -277,6 +277,17 @@ class DogCog(commands.Cog):
     @app_commands.describe(use_in_game_colors="Only use colours from the game. Default: True", use_palette="Specify palette to be used, can be None or Random. Default: None" , add_hat2="Add a random hat2. Default: False", animated="Make dog animated. Default: False", random_animation="Randomize Animation. Default: False")
     @app_commands.autocomplete(use_palette=autocomplete.random_palette)
     async def random_dog(self, interaction: discord.Interaction, use_in_game_colors: bool=True, use_palette: str="None", add_hat2: bool=False, animated: bool=False, random_animation: bool=False):
+        global colour_image
+        active = False
+        if random.randint(0,1000) == 0 and Path("gay.png").exists():
+            import chicorobot.sprites
+            active = True
+            old = colour_image
+            gayim = Image.open("gay.png").convert("RGBA")
+            async def gay_mode(im, colour): 
+                return ImageChops.multiply(im, gayim.resize(im.size)) # HI IF YOU SEE THIS PLEASE KEEP IT A SECRET (pretyt please)
+            chicorobot.sprites.colour_image = gay_mode # also what the fuck WHAT THE FUCK this should be illegal
+            colour_image = chicorobot.sprites.colour_image
         chosen = "None"
         if use_in_game_colors:
             if use_palette.lower() != "none": # Single palette limited
@@ -311,8 +322,12 @@ class DogCog(commands.Cog):
             colone,
             coltwo,
             colthree,
-            extra_text=f"\nPalette: {chosen}"
+            extra_text=f"\nPalette: {chosen}" + (" - 1/1001 CHANCE!! GAY MODE IS ACTIVE!!" if active else "") # shhh keep it secret please
         )
+        if active:
+            chicorobot.sprites.colour_image = old
+
+
 
     @app_commands.command(name="dog", description="Make a Dog!")
     @app_commands.autocomplete(
