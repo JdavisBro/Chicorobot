@@ -99,7 +99,11 @@ class DogCog(commands.Cog):
         hat_y = (anim_origin[1]*to_scaled - hat_origin[1]) + (animation["frames_head"][head_frame]["y"]*5)
 
         # -- Animation _B -- #
-        im = await sprites[dog_b].layer.load_frame(frame, colour=body_col)
+        if dog_b in sprites.sprites(): # BOB do not have a _B
+            im = await sprites[dog_b].layer.load_frame(frame, colour=body_col)
+        else:
+            im2 = await sprites[dog_ear].layer.load_frame(frame)
+            im = Image.new("RGBA", im2.size, (0,0,0,0))
 
         if not nobody:
             if clothes != "Custom":
