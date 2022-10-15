@@ -4,6 +4,7 @@ import tempfile
 import shutil
 from math import cos, sin
 from io import BytesIO
+from pathlib import Path
 
 import discord
 from discord import app_commands
@@ -11,6 +12,7 @@ from discord.ext import commands
 from PIL import Image, ImageChops
 
 from chicorobot import autocomplete
+from chicorobot import errors
 from chicorobot.assets import *
 from chicorobot.sprites import *
 from chicorobot.utils import *
@@ -21,6 +23,32 @@ async def setup(bot):
 class DogCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.cclothes = Path("custom_clothes/")
+        if not self.cclothes.exists():
+            self.cclothes.mkdir()
+        self.chat = Path("custom_hat/")
+        if not self.chat.exists():
+            self.chat.mkdir()
+
+    @app_commands.command(name="set_customs", description="Set the custom clothing and/or hat /dog should default to when none are given.")
+    async def set_customs(self, interaction: discord.Interaction, clothes: discord.Attachment=None, hat: discord.Attachment=None):
+        await interaction.response.defer(thinking=True)
+        if clothes:
+            im2 = BytesIO()
+            await clothes.save(im2)
+            im2 = Image.open(im2, formats=["PNG"])
+            custom_clothes = Image.new("RGBA", (750, 750), (0,0,0,0))
+            custom_clothes.paste(im2, box=(255,424))
+            custom_clothes.save(self.cclothes / f"{interaction.user.id}.png")
+        if hat:
+            im2 = BytesIO()
+            await hat.save(im2)
+            im2 = Image.open(im2, formats=["PNG"])
+            custom_hat = Image.new("RGBA", (750, 750), (0,0,0,0))
+            custom_hat.paste(im2,box=(161,48))
+            custom_hat.save(self.chat / f"{interaction.user.id}.png")
+        out = "Set custom clothes and custom hat." if clothes and hat else "Set custom clothes." if clothes else "Set custom hat." if hat else "Set nothing." # Lol, lmao.
+        await interaction.followup.send(out)
 
     # Actually makes the dog images
     async def make_dog_image(
@@ -77,8 +105,7 @@ class DogCog(commands.Cog):
             if clothes != "Custom":
                 # -- Clothing -- #
                 if not sprites.body.is_frame(clothes):
-                    await interaction.followup.send(f"<:Pizza_OhGod:967483357388759070> `{clothes}` is not a clothing!")
-                    return
+                    raise errors.ClothingNotFound(clothes)
                 im2 = await sprites.body.load_frame(clothes, colour=clothes_col)
                 im2 = im2.rotate(angle=body_ang, center=body_origin, translate=(body_x, body_y)).resize(base_size)
                 im.alpha_composite(im2)
@@ -117,7 +144,7 @@ class DogCog(commands.Cog):
         if expression != "normal":
             fn = Path("expressions/") / (expression + ".png")
             if not fn.exists():
-                return await interaction.followup.send(f"<:Pizza_OhGod:967483357388759070> `{expression}` is not an expression!")
+                raise errors.ExpressionNotFound(expression)
             im3 = Image.open(fn)
             im3 = await colour_image(im3, body_col)
         else:
@@ -143,8 +170,7 @@ class DogCog(commands.Cog):
         # -- Hair -- #
         if all([h in hairHats for h in [hat,hat2]]): # Neither hat doesn't show hair
             if not sprites.hair.is_frame(hair):
-                await interaction.followup.send(f"<:Pizza_OhGod:967483357388759070> `{hair}` is not a hair!")
-                return
+                raise errors.HairNotFound(hair)
             im2 = await sprites.hair.load_frame(hair, colour=body_col)
             im2 = im2.rotate(angle=head_ang, center=hat_origin, translate=(hat_x, hat_y)).resize(base_size)
             im.alpha_composite(im2)
@@ -170,8 +196,7 @@ class DogCog(commands.Cog):
             if h == "None" or h == "Custom" or h in extraHats:
                 continue
             if not sprites.hat.is_frame(h):
-                await interaction.followup.send(f"<:Pizza_OhGod:967483357388759070> `{h}` is not a hat!")
-                return
+                raise errors.HatNotFound(h)
 
         if any([h in hatOverEar for h in [hat,hat2]]):
             await do_ear()
@@ -211,21 +236,27 @@ class DogCog(commands.Cog):
 
         if clothes == "Custom":
             if not custom_clothes:
-                return await interaction.followup.send(content="<:Pizza_Cease:967483853910462536> You didn't supply custom clothes!")
-            im2 = BytesIO()
-            await custom_clothes.save(im2)
-            im2 = Image.open(im2, formats=["PNG"])
-            custom_clothes = Image.new("RGBA", (750, 750), (0,0,0,0))
-            custom_clothes.paste(im2, box=(255,424))
+                if not (self.cclothes / f"{interaction.user.id}.png").exists():
+                    return await interaction.followup.send(content="<:Pizza_Cease:967483853910462536> You didn't supply custom clothes! You can set a default with `/set_customs` or specify with the `custom_clothes` argument.")
+                custom_clothes = Image.open(self.cclothes / f"{interaction.user.id}.png")
+            else:
+                im2 = BytesIO()
+                await custom_clothes.save(im2)
+                im2 = Image.open(im2, formats=["PNG"])
+                custom_clothes = Image.new("RGBA", (750, 750), (0,0,0,0))
+                custom_clothes.paste(im2, box=(255,424))
 
         if hat == "Custom" or hat2 == "Custom":
             if not custom_hat:
-                return await interaction.followup.send(content="<:Pizza_Cease:967483853910462536> You didn't supply a custom hat!")
-            im2 = BytesIO()
-            await custom_hat.save(im2)
-            im2 = Image.open(im2, formats=["PNG"])
-            custom_hat = Image.new("RGBA", (750, 750), (0,0,0,0))
-            custom_hat.paste(im2,box=(161,48))
+                if not (self.chat / f"{interaction.user.id}.png").exists():
+                    return await interaction.followup.send(content="<:Pizza_Cease:967483853910462536> You didn't supply a custom hat! You can set a default with `/set_customs` or specify with the `custom_hat` argument.")
+                custom_hat = Image.open(self.chat / f"{interaction.user.id}.png")
+            else:
+                im2 = BytesIO()
+                await custom_hat.save(im2)
+                im2 = Image.open(im2, formats=["PNG"])
+                custom_hat = Image.new("RGBA", (750, 750), (0,0,0,0))
+                custom_hat.paste(im2,box=(161,48))
 
         def del_temp():
             pass

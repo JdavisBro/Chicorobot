@@ -83,6 +83,14 @@ async def command_error(interaction: discord.Interaction, error):
         await send(f"Frame `{error.frame}` could not be found.", ephemeral=ephemeral)
     elif isinstance(error, errors.AnimationNotFound):
         await send(f"Animation `{error.animation}` could not be found.", ephemeral=ephemeral)
+    elif isinstance(error, errors.ClothingNotFound):
+        await send(f"Clothing `{error.clothing}` could not be found.", ephemeral=ephemeral)
+    elif isinstance(error, errors.HatNotFound):
+        await send(f"Hat `{error.hat}` could not be found.", ephemeral=ephemeral)
+    elif isinstance(error, errors.HairNotFound):
+        await send(f"Hair `{error.hair}` could not be found.", ephemeral=ephemeral)
+    elif isinstance(error, errors.ExpressionNotFound):
+        await send(f"Expression `{error.expression}` could not be found.", ephemeral=ephemeral)
     elif isinstance(error, errors.InvalidFrame):
         return
     else:

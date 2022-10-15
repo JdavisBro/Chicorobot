@@ -191,14 +191,16 @@ class Utils(commands.Cog):
         await interaction.response.send_modal(self.ExecModal())
 
     # Sends last error
-    @app_commands.command(name="error", description="Shows the previous error :skull:")
+    @app_commands.command(name="get_error", description="Shows the previous error :skull:")
     @is_owner()
     async def get_last_error(self, interaction: discord.Interaction):
         if self.bot.last_error:
             error = self.bot.last_error
             text = ""
-            for i in traceback.format_exception(error):
+            for i in traceback.format_exception(error, value=error, tb=None):
                 if i.startswith("\nThe above"):
                     break
                 text += i
             await interaction.response.send_message(f"```{text[:1994]}```", ephemeral=True)
+        else:
+            await interaction.response.send_message("No error.", ephemeral=True)
