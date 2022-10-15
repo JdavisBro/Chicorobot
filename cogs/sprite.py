@@ -344,7 +344,7 @@ async def create_sprite(
         imbyte = BytesIO()
         ims.save(imbyte, "PNG")
         imbyte.seek(0)
-        out = f"{name} frame `{f}`{' (one frame sprite, animation not required)' if wasanimated else ''}:{data}\n"
+        out = f"{name} frame `{frames[0]}`{' (one frame sprite, animation not required)' if wasanimated else ''}:{data}\n"
         file = discord.File(imbyte, f"{name}..png")
         return out, file, msg, None
 
