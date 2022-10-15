@@ -34,8 +34,11 @@ async def animations_sprite(interaction: discord.Interaction, current: str): # a
     return [app_commands.Choice(name=i, value=i) for i in lst]
 
 async def cog(interaction: discord.Interaction, current: str):
-    coglist = ["sprite", "utils", "dog"]
-    return [app_commands.Choice(name=i, value=i) for i in coglist if current in i]
+    if interaction.user.id == interaction.client.ownerid:
+        return [app_commands.Choice(name="You shouldn't be here......", value="what")]
+    else:
+        coglist = ["sprite", "utils", "dog"]
+        return [app_commands.Choice(name=i, value=i) for i in coglist if current in i]
 
 # dog autocompletes
 async def expression(interaction: discord.Interaction, current: str):

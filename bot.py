@@ -32,14 +32,17 @@ class Chicorobot(commands.Bot):
         super().__init__("", intents=intents)
         self.previous_exec = None
         self.ownerid = 0
+        self.last_error = None
 
     async def setup_hook(self):
         await bot.load_extension("cogs.utils")
         await bot.load_extension("cogs.sprite")
         await bot.load_extension("cogs.dog")
 
-        #guild = discord.Object(473976215301128193) # msmg
-        guild = discord.Object(947898290735833128)
+        if sys.argv[1] == "test": # just for me to test easily :D
+            guild = discord.Object(473976215301128193) # msmg
+        else:
+            guild = discord.Object(947898290735833128) # gay
 
         tree.copy_global_to(guild=guild)
         await tree.sync(guild=guild)
@@ -84,6 +87,7 @@ async def command_error(interaction: discord.Interaction, error):
         return
     else:
         await send("<:Pizza_Depressaroli:967482279670718474> Something went wrong.", ephemeral=ephemeral)
+        bot.last_error = error
         raise error
 
 # run.

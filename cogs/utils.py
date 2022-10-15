@@ -1,5 +1,6 @@
 import random
 import textwrap
+import traceback
 from contextlib import redirect_stdout
 from io import BytesIO, StringIO
 
@@ -169,15 +170,35 @@ class Utils(commands.Cog):
                 out = stdout.getvalue()
                 await interaction.followup.send(f"ERROR:\n```py\n{out}\n{error.__class__.__name__}: {error}```", ephemeral=True)
             else:
+                ephemeral = False
+                if isinstance(value, (tuple, list)):
+                    ephemeral = value[-1]
+                    if len(value) > 2:
+                        value = value[0:-1]
+                    else:
+                        value = value[0]
                 out = stdout.getvalue()
                 if out:
                     await interaction.followup.send(f"```py\n{out}\n```", ephemeral=True)
                 if value:
                     interaction.client.previous_exec = value
-                    await interaction.followup.send(value)
+                    await interaction.followup.send(value, ephemeral=ephemeral)
 
     # Just sends the exec modal
     @app_commands.command(name="exec", description="HACKING CODING.")
     @is_owner()
     async def execute(self, interaction: discord.Interaction):
         await interaction.response.send_modal(self.ExecModal())
+
+    # Sends last error
+    @app_commands.command(name="error", description="Shows the previous error :skull:")
+    @is_owner()
+    async def get_last_error(self, interaction: discord.Interaction):
+        if self.bot.last_error:
+            error = self.bot.last_error
+            text = ""
+            for i in traceback.format_exception(error):
+                if i.startswith("\nThe above"):
+                    break
+                text += i
+            await interaction.response.send_message(f"```{text[:1994]}```", ephemeral=True)
