@@ -376,7 +376,7 @@ class DogCog(commands.Cog):
             colone = discord.Colour.random()
             coltwo = discord.Colour.random()
             colthree = discord.Colour.random()
-        view = None
+        view = discord.utils.MISSING
         if use_palette in ["Random", "None"]:
             value = (0b10000 * random_animation) + (0b01000 * animated) + (0b00100 * add_hat2) + (0b00010 * (use_palette == "Random")) + (0b00001 * use_in_game_colors)
             view = RandomRepeatView(value)
