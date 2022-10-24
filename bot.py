@@ -52,6 +52,7 @@ class Chicorobot(commands.Bot):
         await tree.sync(guild=guild)
 
         self.add_view(bot.SpriteModificationView)
+        self.add_view(bot.RandomRepeatView)
         
         appinfo = await bot.application_info()
         bot.ownerid = appinfo.owner.id

@@ -19,6 +19,26 @@ from chicorobot.utils import *
 
 async def setup(bot):
     await bot.add_cog(DogCog(bot))
+    bot.RandomRepeatView = RandomRepeatView(1)
+
+class RandomRepeatView(discord.ui.View):
+    def __init__(self, data):
+        super().__init__(timeout=None)
+        self.repeat.label = f"Repeat! ({data})"
+
+    @discord.ui.button(label="Repeat! (0)", emoji="🔁", custom_id="randomrepeat:repeat")
+    async def repeat(self, interaction, button):
+        dog = interaction.client.get_cog("DogCog")
+        i = button.label.index("(") + 1
+        data = int(button.label[i:button.label.index(")",i)])
+        use_in_game_colors = bool(data & 0b00001)
+        random_palette =     bool(data & 0b00010)
+        add_hat2 =           bool(data & 0b00100)
+        animated =           bool(data & 0b01000)
+        random_animation =   bool(data & 0b10000)
+        for cmd in dog.walk_app_commands():
+            if cmd.name == "random_dog":
+                await cmd.callback(dog, interaction, use_in_game_colors, ("Random" if random_palette else "None"), add_hat2, animated, random_animation)
 
 class DogCog(commands.Cog):
     def __init__(self, bot):
@@ -236,7 +256,7 @@ class DogCog(commands.Cog):
             animation: str="idle", animated: bool=False,
             body_col: str="#ffffff", clothes_col: str="#ffffff", hat_col: str="#ffffff",
             custom_clothes: discord.Attachment=None, custom_hat: discord.Attachment=None,
-            extra_text: str=""
+            extra_text: str="", view=None
         ):
         await interaction.response.defer(thinking=True)
 
@@ -315,7 +335,7 @@ class DogCog(commands.Cog):
                 print(f"GIF CONVERSION ERROR: {await process.stdout.read()}")
                 return await interaction.followup.send(content="Animation Error.")
             file = discord.File(temp / "out.gif", f"Dog.gif")
-        await interaction.followup.send(content=f"Dog:\n`/dog expression:{expression} clothes:{clothes} hat:{hat} hair:{hair} hat2:{hat2} animation:{animation} animated:{animated} body_col:{('#%02x%02x%02x' % body_col) if isinstance(body_col, tuple) else body_col} clothes_col:{('#%02x%02x%02x' % clothes_col) if isinstance(clothes_col, tuple) else clothes_col} hat_col:{('#%02x%02x%02x' % hat_col) if isinstance(hat_col, tuple) else hat_col}`{extra_text}", file=file)
+        await interaction.followup.send(content=f"Dog:\n`/dog expression:{expression} clothes:{clothes} hat:{hat} hair:{hair} hat2:{hat2} animation:{animation} animated:{animated} body_col:{('#%02x%02x%02x' % body_col) if isinstance(body_col, tuple) else body_col} clothes_col:{('#%02x%02x%02x' % clothes_col) if isinstance(clothes_col, tuple) else clothes_col} hat_col:{('#%02x%02x%02x' % hat_col) if isinstance(hat_col, tuple) else hat_col}`{extra_text}", file=file, view=view)
         file.close()
         del_temp()
 
@@ -356,6 +376,10 @@ class DogCog(commands.Cog):
             colone = discord.Colour.random()
             coltwo = discord.Colour.random()
             colthree = discord.Colour.random()
+        view = None
+        if use_palette in ["Random", "None"]:
+            value = (0b10000 * random_animation) + (0b01000 * animated) + (0b00100 * add_hat2) + (0b00010 * (use_palette == "Random")) + (0b00001 * use_in_game_colors)
+            view = RandomRepeatView(value)
         await self.make_dog(
             interaction,
             random.choice(["normal"] + [i.stem for i in Path("expressions/").iterdir()]),
@@ -368,7 +392,8 @@ class DogCog(commands.Cog):
             colone,
             coltwo,
             colthree,
-            extra_text=f"\nPalette: {chosen}" + (" - 1/1001 CHANCE!! GAY MODE IS ACTIVE!!" if active else "") # shhh keep it secret please
+            extra_text=f"\nPalette: {chosen}" + (" - 1/1001 CHANCE!! GAY MODE IS ACTIVE!!" if active else ""), # shhh keep it secret please
+            view=view
         )
         if active:
             chicorobot.sprites.colour_image = old
