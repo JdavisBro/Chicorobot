@@ -58,9 +58,9 @@ class SaveCog(commands.Cog):
         self.saves = Path("userdata/saves/")
         if not self.saves.exists():
             self.saves.mkdir()
-        self.screens = Path("chicory-level-screenshots/level_screenshots/")
-        if not self.screens.exists():
-            logging.warn("Level screenshots not found, can be downloaded with `git submodules update --init`")
+        # self.screens = Path("chicory-level-screenshots/level_screenshots/")
+        # if not self.screens.exists():
+        #     logging.warn("Level screenshots not found, can be downloaded with `git submodules update --init`")
         level_datafp = Path("data/level_data")
         if level_datafp.exists():
             with level_datafp.open() as f:
