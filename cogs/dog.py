@@ -23,10 +23,10 @@ async def setup(bot):
 class DogCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.cclothes = Path("custom_clothes/")
+        self.cclothes = Path("userdata/custom_clothes/")
         if not self.cclothes.exists():
             self.cclothes.mkdir()
-        self.chat = Path("custom_hat/")
+        self.chat = Path("userdata/custom_hat/")
         if not self.chat.exists():
             self.chat.mkdir()
 
@@ -35,6 +35,8 @@ class DogCog(commands.Cog):
         await interaction.response.defer(thinking=True)
         if clothes:
             im2 = BytesIO()
+            if clothes.size > 10000000: # 10mb max
+                return await interaction.response.send_message("Clothes image too large (10mb max).")
             await clothes.save(im2)
             im2 = Image.open(im2, formats=["PNG"])
             custom_clothes = Image.new("RGBA", (750, 750), (0,0,0,0))
@@ -42,6 +44,8 @@ class DogCog(commands.Cog):
             custom_clothes.save(self.cclothes / f"{interaction.user.id}.png")
         if hat:
             im2 = BytesIO()
+            if hat.size > 10000000: # 10mb max
+                return await interaction.response.send_message("Hat image too large (10mb max)" + (" but custom clothes were set." if clothes else '.'))
             await hat.save(im2)
             im2 = Image.open(im2, formats=["PNG"])
             custom_hat = Image.new("RGBA", (750, 750), (0,0,0,0))
@@ -77,8 +81,11 @@ class DogCog(commands.Cog):
         body_frame = frame
         if len(animation["frames_body"]) <= frame:
             body_frame = len(animation["frames_body"]) - 1
+        
         body_origin = (375, 599)
+        
         nobody = False
+        
         if animation["frames_body"]:
             body_ang = -animation["frames_body"][body_frame]["ang"]
             body_x = (anim_origin[0]*to_scaled - body_origin[0]) + (animation["frames_body"][body_frame]["x"]*5)
@@ -148,7 +155,10 @@ class DogCog(commands.Cog):
         if expression != "normal":
             fn = Path("expressions/") / (expression + ".png")
             if not fn.exists():
-                raise errors.ExpressionNotFound(expression)
+                if expression in expressions_alts:
+                    fn = Path("expressions/") / (expressions_alts[expression] + ".png")
+                else:
+                    raise errors.ExpressionNotFound(expression)
             im3 = Image.open(fn)
             im3 = await colour_image(im3, body_col)
         else:
@@ -306,6 +316,7 @@ class DogCog(commands.Cog):
                 return await interaction.followup.send(content="Animation Error.")
             file = discord.File(temp / "out.gif", f"Dog.gif")
         await interaction.followup.send(content=f"Dog:\n`/dog expression:{expression} clothes:{clothes} hat:{hat} hair:{hair} hat2:{hat2} animation:{animation} animated:{animated} body_col:{('#%02x%02x%02x' % body_col) if isinstance(body_col, tuple) else body_col} clothes_col:{('#%02x%02x%02x' % clothes_col) if isinstance(clothes_col, tuple) else clothes_col} hat_col:{('#%02x%02x%02x' % hat_col) if isinstance(hat_col, tuple) else hat_col}`{extra_text}", file=file)
+        file.close()
         del_temp()
 
     @app_commands.command(name="random_dog", description="Make a random dog!")

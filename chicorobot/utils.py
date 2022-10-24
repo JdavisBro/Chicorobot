@@ -5,7 +5,8 @@ from typing import Union
 
 __all__ = (
     "imagemagick",
-    "to_titlecase"
+    "to_titlecase",
+    "from_bgr_decimal"
 )
 
 # Check for imagemagick
@@ -24,3 +25,7 @@ def to_titlecase(string):
         return "-".join([word[0].upper() + word[1:].lower() for word in string.split("-")]) # Half-Moons
     else:
         return " ".join([word[0].upper() + word[1:].lower() for word in string.split(" ")])
+
+def from_bgr_decimal(c):
+    c = int(c)
+    return ((c >> 0) & 0xff, (c >> 8) & 0xff, (c >> 16) & 0xff)

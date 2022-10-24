@@ -105,3 +105,29 @@ paletteAliases = {
     "Simmer Springs": "springs",
     "Gulp Swamp": "swamp"
 }
+
+expressions_alts = {
+    "grr": "angry",
+    "gr": "angry",
+    "grrr": "angry",
+    "gah": "gasp",
+    "ow": "ouch",
+    "worried": "worry",
+    "swoon": "smit",
+    "hmf": "hmph"
+}
+
+in_game_clothes = {
+    "Custom Tee": "Custom",
+    "Fuzzy": "Woven",
+    "Splashpants": "Splash Pants",
+    "Princess": "Gorgeous",
+    "Gi": "Hiker"
+}
+
+in_game_hats = {
+    "Custom Hat": "Custom",
+    "Wielder Tie": "Wielder Wrap",
+    "Hajib": "Headscarf",
+    "Earflap": "Earflaps"
+}

@@ -9,5 +9,5 @@ Export_Sprites/
 TOKEN.txt
 update.sh
 imagemagick
-custom_clothes/
-custom_hat/
+userdata/
+data/level_data

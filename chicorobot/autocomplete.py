@@ -37,7 +37,7 @@ async def cog(interaction: discord.Interaction, current: str):
     if interaction.user.id != interaction.client.ownerid:
         return [app_commands.Choice(name="You shouldn't be here......", value="what")]
     else:
-        coglist = ["sprite", "utils", "dog"]
+        coglist = ["sprite", "utils", "dog", "save"]
         return [app_commands.Choice(name=i, value=i) for i in coglist if current in i]
 
 # dog autocompletes

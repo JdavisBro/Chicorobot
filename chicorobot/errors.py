@@ -35,3 +35,6 @@ class ColourError(Exception):
 
 class InvalidFrame(Exception):
     pass
+
+class SaveNotUploaded(Exception):
+    pass

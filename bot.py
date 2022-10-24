@@ -35,9 +35,13 @@ class Chicorobot(commands.Bot):
         self.last_error = None
 
     async def setup_hook(self):
+        if not Path("userdata/").exists():
+            Path("userdata/").mkdir()
+
         await bot.load_extension("cogs.utils")
         await bot.load_extension("cogs.sprite")
         await bot.load_extension("cogs.dog")
+        await bot.load_extension("cogs.save")
 
         if len(sys.argv) > 1 and sys.argv[1] == "test": # just for me to test easily :D
             guild = discord.Object(473976215301128193) # msmg
@@ -93,6 +97,8 @@ async def command_error(interaction: discord.Interaction, error):
         await send(f"Expression `{error.expression}` could not be found.", ephemeral=ephemeral)
     elif isinstance(error, errors.InvalidFrame):
         return
+    elif isinstance(error, errors.SaveNotUploaded):
+        await send("Your save data has not been uploaded yet. Use `/save upload` to do that!")
     else:
         await send("<:Pizza_Depressaroli:967482279670718474> Something went wrong.", ephemeral=ephemeral)
         bot.last_error = error
