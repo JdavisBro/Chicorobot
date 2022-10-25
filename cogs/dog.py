@@ -256,7 +256,7 @@ class DogCog(commands.Cog):
             animation: str="idle", animated: bool=False,
             body_col: str="#ffffff", clothes_col: str="#ffffff", hat_col: str="#ffffff",
             custom_clothes: discord.Attachment=None, custom_hat: discord.Attachment=None,
-            extra_text: str="", view=None
+            extra_text: str="", view=discord.utils.MISSING
         ):
         await interaction.response.defer(thinking=True)
 
