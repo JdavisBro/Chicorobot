@@ -199,7 +199,8 @@ class Utils(commands.Cog):
             text = ""
             for i in traceback.format_exception(error, value=error, tb=None):
                 if i.startswith("\nThe above"):
-                    break
+                    text = ""
+                    continue
                 text += i
             await interaction.response.send_message(f"```{text[:1994]}```", ephemeral=True)
         else:
