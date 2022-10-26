@@ -315,7 +315,7 @@ async def create_sprite(
             except ValueError:
                 pass # Blank Image
         if animated:
-            im.save(temp / f"{frameN:03}.gif")
+            im.save(temp / (f"{frameN:03}." + ("gif" if not output_zip else "png")))
             frameN += 1
         else:
             if crop_transparency and crop:
@@ -375,7 +375,7 @@ async def create_sprite(
                 zipf.write(i, i.relative_to(temp))
         f.seek(0)
         file = discord.File(f, f"{name}.zip")
-        out = f"{name}:{data}" if not giferror else f"{name} (Zip, GIF conversion failed):{data}\n"
+        out = f"{name}:{data}"
         return out, file, msg, temp
 
 class SpriteCog(commands.Cog):
