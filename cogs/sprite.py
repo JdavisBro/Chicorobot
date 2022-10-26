@@ -315,7 +315,7 @@ async def create_sprite(
             except ValueError:
                 pass # Blank Image
         if animated:
-            im.save(temp / f"{frameN:03}.png")
+            im.save(temp / f"{frameN:03}.gif")
             frameN += 1
         else:
             if crop_transparency and crop:
@@ -352,22 +352,23 @@ async def create_sprite(
 
     if animated and not output_zip:
         await msg.edit(content="Converting PNGs to GIF (2/2)")
-        addcrop = f"-crop {crop[2]-crop[0]}x{crop[3]-crop[1]}+{crop[0]}+{crop[1]} +repage " if crop_transparency else ""
+        addcrop = f"--crop {crop[0]},{crop[1]}-{crop[2]},{crop[3]} " if crop_transparency else ""
         process = await asyncio.create_subprocess_shell(
-            f"{imagemagick} -delay 1x{animation_fps} -loop 0 -dispose Background {addcrop}{temp / '*.png'} {temp / 'out.gif'}", # imagemagick is the only good way I've found of creating a GIF in python without it being horrible quality or not maintaining transparency.
+            f"{gifsicle} --delay {int(1/animation_fps*100)} --disposal bg --loopcount=0 {addcrop}{temp / '*.gif'}",
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE
         )
-        await process.communicate()
+        stdout, stderr = await process.communicate()
+        gifdata = BytesIO(stdout)
         if process.returncode != 0: # Error
-            print(f"GIF CONVERSION ERROR: {await process.stdout.read()}")
+            print(f"GIF CONVERSION ERROR: {stdout.decode()}")
             giferror = True
         else:
             out = f"{name} at {animation_fps} fps:{data}\n"
-            file = discord.File(temp / "out.gif", f"{name}.gif")
+            file = discord.File(gifdata, f"{name}.gif")
             return out, file, msg, temp
 
-    if animated and (output_zip or giferror):
+    if animated and output_zip:
         await msg.edit(content=f"{'GIF Conversion failed, ' if giferror else ''}Zipping PNGs (2/2)")
         f = BytesIO()
         with zipfile.ZipFile(f, "x") as zipf:
