@@ -144,7 +144,7 @@ class SaveCog(commands.Cog):
         await interaction.followup.send(f"`{screen}`:", file=file)
 
     @save.command(name="timelapse", description="Makes a timelapse of a given screen file.")
-    async def timelapse(self, interaction: discord.Interaction, screen: discord.Attachment):
+    async def timelapse(self, interaction: discord.Interaction, screen: discord.Attachment, loop: bool=False):
         await interaction.response.defer(thinking=True)
         save = self.get_playdata(interaction.user)
         screen_name = screen.filename
@@ -177,7 +177,7 @@ class SaveCog(commands.Cog):
             im = im.resize((im.size[0]*8, im.size[1]*8), resample=0)
             im.save(temp / f"{i:03}.gif")
         process = await asyncio.create_subprocess_shell(
-            f"{gifsicle} --delay 12 --disposal bg --loopcount=0 {temp / '*.gif'}",
+            f"{gifsicle} --delay 12 --disposal bg {'--loopcount' if loop else '--no-loopcount'} {temp / '*.gif'}",
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE
         )
