@@ -148,5 +148,3 @@ with open("data/sprites.json") as f:
 
 with open("data/dog_animations.json") as f:
     dog_animations = json.load(f)
-
-[dog_animations.pop(i) for i in ["bosshold", "bossgrab", "bossdrop"]] # these do not work currently so i'll delete them!

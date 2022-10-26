@@ -2,7 +2,6 @@ import asyncio
 import random
 import tempfile
 import shutil
-from math import cos, sin
 from io import BytesIO
 from pathlib import Path
 
