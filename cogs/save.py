@@ -182,9 +182,16 @@ class SaveCog(commands.Cog):
         )
         await process.communicate()
         if process.returncode != 0: # Error
-            print(f"GIF CONVERSION ERROR: {await process.stdout.read()}")
-            return await interaction.followup.send(content="Animation Error.")
-        file = discord.File(temp / "out.gif", f"{screen_name}.gif")
-        await interaction.followup.send(f"`{screen_name}`:", file=file)
+            f = BytesIO()
+            with zipfile.ZipFile(f, "x") as zipf:
+                for i in temp.glob("*.png"):
+                    zipf.write(i, i.relative_to(temp))
+            f.seek(0)
+            file = discord.File(f, f"{screen_name}.zip")
+            gif_fail = " gif conversion failed"
+        else:
+            file = discord.File(temp / "out.gif", f"{screen_name}.gif")
+            gif_fail = ""
+        await interaction.followup.send(f"`{screen_name}`{gif_fail}:", file=file)
         file.close()
         del_temp()
