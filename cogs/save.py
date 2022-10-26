@@ -23,17 +23,22 @@ async def setup(bot):
     await bot.add_cog(SaveCog(bot))
 
 PAINT_SIZE = (162,91)
+PAINT_SIZE_ART = (82, 82)
 
 class Paint():
-    def __init__(self, paintdata):
+    def __init__(self, paintdata, not_screen=False):
         if isinstance(paintdata, str):
             paintdata = b64decode(paintdata)
         paintdata = decompress(paintdata).hex()
+        self.size = PAINT_SIZE if not not_screen else PAINT_SIZE_ART
         self.paintdata = [[]]
         i = 0
-        for i, v in enumerate(paintdata):
-            self.paintdata[-1].append(v)
-            if (i+1) % PAINT_SIZE[0] == 0:
+        for i in range(0, len(paintdata), 2 if not_screen else 1):
+            if not_screen:
+                self.paintdata[-1].append(paintdata[i:i+2])
+            else:
+                self.paintdata[-1].append(paintdata[i])
+            if ((i/2 if not_screen else i)+1) % self.size[0] == 0:
                 self.paintdata.append([])
         self.paintdata.remove([])
     
@@ -41,15 +46,15 @@ class Paint():
         if (not isinstance(i, tuple)) or len(i) != 2:
             raise IndexError("Paint getter must be two values, e.g paint[x,y]")
         x, y = i
-        if 0 > x >= PAINT_SIZE[0]:
-            raise IndexError(f"x value must be between 0 and {PAINT_SIZE[0]-1}")
-        if 0 > y >= PAINT_SIZE[1]:
-            raise IndexError(f"y value must be between 0 and {PAINT_SIZE[1]-1}")
+        if 0 > x >= self.size[0]:
+            raise IndexError(f"x value must be between 0 and {self.size[0]-1}")
+        if 0 > y >= self.size[1]:
+            raise IndexError(f"y value must be between 0 and {self.size[1]-1}")
         return self.paintdata[y][x]
 
     def iter(self):
-        for y in range(PAINT_SIZE[1]):
-            for x in range(PAINT_SIZE[0]):
+        for y in range(self.size[1]):
+            for x in range(self.size[0]):
                 yield x, y, self.paintdata[y][x]
 
 
@@ -123,9 +128,9 @@ class SaveCog(commands.Cog):
             palette["f"] = (217, 199, 190)
         return palette
 
-    async def draw_paint(self, paint, palette):
-        paint = Paint(paint)
-        im = Image.new("RGB", size=PAINT_SIZE)
+    async def draw_paint(self, paint, palette, not_screen=False):
+        paint = Paint(paint, not_screen)
+        im = Image.new("RGB", size=paint.size)
         for x, y, col in paint.iter():
             im.putpixel((x,y), palette[col])
         return im
@@ -144,18 +149,33 @@ class SaveCog(commands.Cog):
         await interaction.followup.send(f"`{screen}`:", file=file)
 
     @save.command(name="timelapse", description="Makes a timelapse of a given screen file.")
+    @app_commands.describe(screen="timelapse file saved by the game in `savefolder/timelapse/` - Can be a class")
     async def timelapse(self, interaction: discord.Interaction, screen: discord.Attachment, loop: bool=False):
         await interaction.response.defer(thinking=True)
         save = self.get_playdata(interaction.user)
         screen_name = screen.filename
-        if "_" not in screen_name:
-            return await interaction.followup.send("Non screen not supported currently.")
+        not_screen = "_" not in screen_name
         if screen.size > 10000000:
             return await interaction.followup.send("Timelapse file too large")
         timelapsebytes = BytesIO()
         await screen.save(timelapsebytes)
         timelapsebytes.seek(0)
-        palette = self.get_palette(screen_name, save)
+        if not_screen:
+            palette = {}
+            cols = save[3]["timelapse_data"][screen_name]["c"]
+            palette["00"] = (255, 255, 255)
+            for i in range(1, 25):
+                h = hex(i)[2:]
+                if len(h) == 1: h = "0" + h
+                palette[h] = from_bgr_decimal(cols[i-1])
+            for i in range(25, 33):
+                h = hex(i)[2:]
+                if len(h) == 1: h = "0" + h
+                if f"custompaint_{i-25}" not in save[3]:
+                    break
+                palette[h] = from_bgr_decimal(save[3][f"custompaint_{i-25}"])
+        else:
+            palette = self.get_palette(screen_name, save)
         temp = tempfile.mkdtemp()
         temp = Path(temp)
         print(f"Making temp: {str(temp)}")
@@ -173,7 +193,7 @@ class SaveCog(commands.Cog):
                 timelapsepaint = timelapsebytes.read(size)
             else:
                 timelapsepaint = timelapsebytes.read()
-            im = await self.draw_paint(timelapsepaint, palette)
+            im = await self.draw_paint(timelapsepaint, palette, not_screen)
             im = im.resize((im.size[0]*8, im.size[1]*8), resample=0)
             im.save(temp / f"{i:03}.gif")
         process = await asyncio.create_subprocess_shell(
@@ -192,7 +212,7 @@ class SaveCog(commands.Cog):
             gif_fail = " gif conversion failed"
         else:
             gifdata = BytesIO(stdout)
-            file = discord.File(gifdata, f"Dog.gif")
+            file = discord.File(gifdata, f"{screen_name}.gif")
             gif_fail = ""
         await interaction.followup.send(f"`{screen_name}`{gif_fail}:", file=file)
         file.close()
