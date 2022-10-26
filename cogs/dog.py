@@ -7,6 +7,7 @@ from io import BytesIO
 from pathlib import Path
 
 import discord
+import numpy
 from discord import app_commands
 from discord.ext import commands
 from PIL import Image, ImageChops
@@ -85,10 +86,12 @@ class DogCog(commands.Cog):
 
         if animation_name == "idle":
             base_size = (750, 750)
-            to_scaled = 1
+            scale = 5
+            to_scale = 1
         else:
             base_size = (150, 150)
-            to_scaled = 5
+            scale = 1
+            to_scale = 5
 
         if animation_name not in dog_animations:
             raise errors.AnimationNotFound(animation_name)
@@ -108,8 +111,8 @@ class DogCog(commands.Cog):
         
         if animation["frames_body"]:
             body_ang = -animation["frames_body"][body_frame]["ang"]
-            body_x = (anim_origin[0]*to_scaled - body_origin[0]) + (animation["frames_body"][body_frame]["x"]*5)
-            body_y = (anim_origin[1]*to_scaled - body_origin[1]) + (animation["frames_body"][body_frame]["y"]*5)
+            body_x = (anim_origin[0] - body_origin[0]//to_scale) + (animation["frames_body"][body_frame]["x"]*scale)
+            body_y = (anim_origin[1] - body_origin[1]//to_scale) + (animation["frames_body"][body_frame]["y"]*scale)
         else:
             nobody = True
 
@@ -119,18 +122,43 @@ class DogCog(commands.Cog):
 
         head_origin = (225, 370)
         head_ang = animation["frames_head"][head_frame]["ang"]
-        head_x = (anim_origin[0]*to_scaled - head_origin[0]) + (animation["frames_head"][head_frame]["x"]*5)
-        head_y = (anim_origin[1]*to_scaled - head_origin[1]) + (animation["frames_head"][head_frame]["y"]*5)
+        head_x = (anim_origin[0] - head_origin[0]//to_scale) + (animation["frames_head"][head_frame]["x"]*scale)
+        head_y = (anim_origin[1] - head_origin[1]//to_scale) + (animation["frames_head"][head_frame]["y"]*scale)
         hat_origin = (385, 420)
-        hat_x = (anim_origin[0]*to_scaled - hat_origin[0]) + (animation["frames_head"][head_frame]["x"]*5)
-        hat_y = (anim_origin[1]*to_scaled - hat_origin[1]) + (animation["frames_head"][head_frame]["y"]*5)
+        hat_x = (anim_origin[0] - hat_origin[0]//to_scale) + (animation["frames_head"][head_frame]["x"]*scale)
+        hat_y = (anim_origin[1] - hat_origin[1]//to_scale) + (animation["frames_head"][head_frame]["y"]*scale)
 
         # -- Animation _B -- #
         if dog_b in sprites.sprites(): # BOB do not have a _B
-            im = await sprites[dog_b].layer.load_frame(frame, colour=body_col)
+            im2 = await sprites[dog_b].layer.load_frame(frame, colour=body_col)
         else:
             im2 = await sprites[dog_ear].layer.load_frame(frame)
-            im = Image.new("RGBA", im2.size, (0,0,0,0))
+            im2 = Image.new("RGBA", im2.size, (0,0,0,0))
+
+        buffer_add = 50
+        buffer_size = (im2.size[0] + (buffer_add*2), im2.size[1] + (buffer_add*2))
+        im = Image.new("RGBA", buffer_size, (0,0,0,0))
+        
+        def put_image(im2, x=0, y=0):
+            pos = [int(x)+buffer_add,int(y)+buffer_add]
+            print(pos, body_x, body_y)
+            im3 = Image.new("RGBA", buffer_size, (0,0,0,0))
+            im3.paste(im2, pos)
+            im.alpha_composite(im3)
+        
+        put_image(im2)
+
+        def put_rotate_resize(im, x, y, degrees, origin, resize=base_size):
+            buffer_scaled = int(buffer_add*to_scale)
+            origin = (origin[0] + buffer_scaled, origin[1] + buffer_scaled)
+            im2 = Image.new("RGBA", (im.width+buffer_scaled*2, im.height+buffer_scaled*2), (0,0,0,0))
+            im2.paste(im, (buffer_scaled, buffer_scaled))
+            im = im2.rotate(degrees, center=origin)
+            resize = (resize[0] + buffer_add*2, resize[1] + buffer_add*2)
+            if resize != im.size:
+                im = im.resize(resize)
+            print(im2.size, im.size)
+            put_image(im, x-buffer_add, y-buffer_add)
 
         if not nobody:
             if clothes != "Custom":
@@ -138,38 +166,33 @@ class DogCog(commands.Cog):
                 if not sprites.body.is_frame(clothes):
                     raise errors.ClothingNotFound(clothes)
                 im2 = await sprites.body.load_frame(clothes, colour=clothes_col)
-                im2 = im2.rotate(angle=body_ang, center=body_origin, translate=(body_x, body_y)).resize(base_size)
-                im.alpha_composite(im2)
+                put_rotate_resize(im2, body_x, body_y, body_ang, body_origin)
             else:
                 # -- Custom Clothing -- #
-                im2 = custom_clothes.rotate(angle=body_ang, center=body_origin, translate=(body_x, body_y)).resize(base_size)
-                im2 = await colour_image(im2, clothes_col)
-                im.alpha_composite(im2)
+                im2 = await colour_image(custom_clothes, clothes_col)
+                put_rotate_resize(im2, body_x, body_y, body_ang, body_origin)
 
         # -- Clothing _0 -- #
         if sprites.body2.is_frame(clothes+"_0") and not nobody:
             im2 = await sprites.body2.load_frame(clothes + "_0", colour=hat_col)
-            im2 = im2.rotate(angle=body_ang, center=body_origin, translate=(body_x, body_y)).resize(base_size)
-            im.alpha_composite(im2)
+            put_rotate_resize(im2, body_x, body_y, body_ang, body_origin)
 
         # -- Animation _A -- #
         if dog_a in sprites.sprites(): # Some animations do not have an _A
             im2 = await sprites[dog_a].layer.load_frame(frame, colour=body_col)
-            im.alpha_composite(im2)
+            put_image(im2)
 
         # -- Clothing _1 -- #
         if sprites.body2.is_frame(clothes+"_1") and not nobody:
             im2 = await sprites.body2.load_frame(clothes+"_1", colour=hat_col)
-            im2 = im2.rotate(angle=body_ang, center=body_origin, translate=(body_x, body_y)).resize(base_size)
-            im.alpha_composite(im2)
+            put_rotate_resize(im2, body_x, body_y, body_ang, body_origin)
         
         # -- Neck Hats -- #
         if not nobody:
             for h in [hat,hat2]:
                 if h in extraHats:
                     im2 = await sprites.body2.load_frame(h+"_1", colour=hat_col)
-                    im2 = im2.rotate(angle=body_ang, center=body_origin, translate=(body_x, body_y)).resize(base_size)
-                    im.alpha_composite(im2)
+                    put_rotate_resize(im2, body_x, body_y, body_ang, body_origin)
 
         # -- Expression -- #
         if expression != "normal":
@@ -185,29 +208,25 @@ class DogCog(commands.Cog):
             im3 = await sprites.head.load_frame(0, colour=body_col)
         im2 = Image.new("RGBA", (750, 750))
         im2.paste(im3)
-        im2 = im2.rotate(angle=head_ang, center=head_origin, translate=(head_x, head_y)).resize(base_size)
-        im.alpha_composite(im2)    
+        put_rotate_resize(im2, head_x, head_y, head_ang, head_origin)
 
         # -- Clothing _2 -- #
         if sprites.body2.is_frame(clothes+"_2") and not nobody:
             im2 = await sprites.body2.load_frame(clothes+"_2", colour=clothes_col)
-            im2 = im2.rotate(angle=body_ang, center=body_origin, translate=(body_x, body_y)).resize(base_size)
-            im.alpha_composite(im2)
+            put_rotate_resize(im2, body_x, body_y, body_ang, body_origin)
         
         # -- Hats _1 -- #
         for h in [hat,hat2]:
             if sprites.hat.is_frame(h+"_1"): # Behind hair part of hat (only used for horns)
                 im2 = await sprites.hat.load_frame(h+"_1", colour=hat_col)
-                im2 = im2.rotate(angle=head_ang, center=hat_origin, translate=(hat_x, hat_y)).resize(base_size)
-                im.alpha_composite(im2)
+                put_rotate_resize(im2, hat_x, hat_y, head_ang, hat_origin)
 
         # -- Hair -- #
         if all([h in hairHats for h in [hat,hat2]]): # Neither hat doesn't show hair
             if not sprites.hair.is_frame(hair):
                 raise errors.HairNotFound(hair)
             im2 = await sprites.hair.load_frame(hair, colour=body_col)
-            im2 = im2.rotate(angle=head_ang, center=hat_origin, translate=(hat_x, hat_y)).resize(base_size)
-            im.alpha_composite(im2)
+            put_rotate_resize(im2, hat_x, hat_y, head_ang, hat_origin)
 
         # -- Hat -- #
         async def do_hat():
@@ -216,15 +235,13 @@ class DogCog(commands.Cog):
                     continue
                 if h != "Custom":
                     im2 = await sprites.hat.load_frame(h, colour=hat_col)
-                    im2 = im2.rotate(angle=head_ang, center=hat_origin, translate=(hat_x, hat_y)).resize(base_size)
-                    im.alpha_composite(im2)
                 else:
-                    im2 = custom_hat.rotate(angle=head_ang, center=hat_origin, translate=(hat_x, hat_y)).resize(base_size) # MIGHT NOT WORK MAKE SURE TO TEST :D
-                    im.alpha_composite(await colour_image(im2, hat_col))
+                    im2 = custom_hat
+                put_rotate_resize(im2, hat_x, hat_y, head_ang, hat_origin)
 
         async def do_ear():
             im2 = await sprites[dog_ear].layer.load_frame(frame, colour=body_col)
-            im.alpha_composite(im2)
+            put_image(im2)
 
         for h in [hat, hat2]:
             if h == "None" or h == "Custom" or h in extraHats:
@@ -241,13 +258,14 @@ class DogCog(commands.Cog):
 
         # -- TRANSIT PASS -- #
         if animation_name == "transit":
-            im3 = Image.new("RGBA", (base_size[0], base_size[1] + 38), (0,0,0,0))
-            im3.paste(im, (0, 38))
-            im = im3
             im2 = await sprites["Dog_transit_card"].layer.load_frame(frame)
-            im.alpha_composite(im2)
+            put_image(im2, 0, -38)
 
-        return im
+        imnp = numpy.array(im)
+        imnp = numpy.where(imnp[:, :, 3] > 0) # Non transparent pixels
+        crop  = [imnp[1].min(), imnp[0].min(), imnp[1].max(), imnp[0].max()]
+        
+        return im, crop
 
     # Function that creates and sends dogs, used by dog and random_dog
     async def make_dog(
@@ -295,7 +313,8 @@ class DogCog(commands.Cog):
         def del_temp():
             pass
         if not animated:
-            im = await self.make_dog_image(expression, clothes, hat, hair, hat2, animation, 0, body_col, clothes_col, hat_col, custom_clothes, custom_hat)
+            im, crop = await self.make_dog_image(expression, clothes, hat, hair, hat2, animation, 0, body_col, clothes_col, hat_col, custom_clothes, custom_hat)
+            im = im.crop(crop)
             imbyte = BytesIO()
             im.save(imbyte, "PNG")
             imbyte.seek(0)
@@ -322,11 +341,20 @@ class DogCog(commands.Cog):
                         print("Failed to delete file.")
                     else:
                         print(f"Deleted temp: {str(temp)}")
+            cropfull = None
             for frame in frames:
-                im = await self.make_dog_image(expression, clothes, hat, hair, hat2, animation, frame, body_col, clothes_col, hat_col, custom_clothes, custom_hat)
+                im, crop = await self.make_dog_image(expression, clothes, hat, hair, hat2, animation, frame, body_col, clothes_col, hat_col, custom_clothes, custom_hat)
+                if not cropfull:
+                    cropfull = crop
+                else:
+                    cropfull[0] = min(crop[0], cropfull[0])
+                    cropfull[1] = min(crop[1], cropfull[1])
+                    cropfull[2] = max(crop[2], cropfull[2])
+                    cropfull[3] = max(crop[3], cropfull[3])
                 im.save(temp / f"{frame:03}.png")
+            addcrop = f"-crop {cropfull[2]-cropfull[0]}x{cropfull[3]-cropfull[1]}+{cropfull[0]}+{cropfull[1]} +repage "
             process = await asyncio.create_subprocess_shell(
-                f"{imagemagick} -delay 1x8 -loop 0 -dispose Background {temp / '*.png'} {temp / 'out.gif'}", # honestly not sure on the FPS or what the `speed` variable means
+                f"{imagemagick} -delay 1x8 -loop 0 -dispose Background {addcrop}{temp / '*.png'} {temp / 'out.gif'}", # honestly not sure on the FPS or what the `speed` variable means
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE
             )
