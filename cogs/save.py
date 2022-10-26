@@ -3,6 +3,7 @@ import asyncio
 import shutil
 import logging
 import tempfile
+import zipfile
 from io import BytesIO
 from zlib import decompress
 from base64 import b64decode
