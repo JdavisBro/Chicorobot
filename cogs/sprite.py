@@ -216,7 +216,7 @@ async def create_sprite(
     animation_fps = round(animation_fps)
     animation_fps = min(max(animation_fps, 1), 50)
 
-    if (animated and not output_zip) and not imagemagick:
+    if (animated and not output_zip) and not gifsicle:
         await interaction.followup.send(content="Animated sprites are unavailable, making non animated version.")
         animated = False
     
@@ -244,7 +244,7 @@ async def create_sprite(
     
     content = "Making Image"
     if animated:
-        content += "s and saving to PNG (1/2)"
+        content += "s (1/2)"
     elif wasanimated:
         content += " (single frame sprite, does not need to be animated)"
     msg = await interaction.followup.send(content=content)
@@ -335,7 +335,7 @@ async def create_sprite(
         if data[i] == default_data[i]:
             data.pop(i)
 
-    data = json.dumps(data, separators=(",",":"))
+    data = json.dumps(data, separators=(",",":")) # This is probably not very efficient but is cool reference
     data = zlib.compress(data.encode("utf-8"))
     data = b64encode(data).decode("utf-8")
     data = f"[](${data}$)"
@@ -348,10 +348,8 @@ async def create_sprite(
         file = discord.File(imbyte, f"{name}..png")
         return out, file, msg, None
 
-    giferror = False
-
     if animated and not output_zip:
-        await msg.edit(content="Converting PNGs to GIF (2/2)")
+        await msg.edit(content="Combining Images (2/2)")
         addcrop = f"--crop {crop[0]},{crop[1]}-{crop[2]},{crop[3]} " if crop_transparency else ""
         process = await asyncio.create_subprocess_shell(
             f"{gifsicle} --delay {int(1/animation_fps*100)} --disposal bg --loopcount=0 {addcrop}{temp / '*.gif'}",
@@ -359,17 +357,18 @@ async def create_sprite(
             stderr=asyncio.subprocess.PIPE
         )
         stdout, stderr = await process.communicate()
-        gifdata = BytesIO(stdout)
         if process.returncode != 0: # Error
-            print(f"GIF CONVERSION ERROR: {stdout.decode()}")
-            giferror = True
+            print(f"GIF CONVERSION ERROR: {stderr.decode()}")
+            await msg.edit("Gif Conversion Failed. :(")
+            raise errors.GifError()
         else:
+            gifdata = BytesIO(stdout)
             out = f"{name} at {animation_fps} fps:{data}\n"
             file = discord.File(gifdata, f"{name}.gif")
             return out, file, msg, temp
 
     if animated and output_zip:
-        await msg.edit(content=f"{'GIF Conversion failed, ' if giferror else ''}Zipping PNGs (2/2)")
+        await msg.edit(content=f"Zipping PNGs (2/2)")
         f = BytesIO()
         with zipfile.ZipFile(f, "x") as zipf:
             for i in temp.glob("*.png"):

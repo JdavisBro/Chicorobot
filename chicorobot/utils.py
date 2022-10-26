@@ -4,22 +4,10 @@ from pathlib import Path
 from typing import Union
 
 __all__ = (
-    "imagemagick",
     "gifsicle",
     "to_titlecase",
     "from_bgr_decimal"
 )
-
-# Check for imagemagick
-imagemagick: Union[Path, str, None] = None
-if sys.platform.startswith("win32") or sys.platform.startswith("cygwin"):
-    imagemagick = shutil.which("magick")
-else:
-    imagemagick = shutil.which("convert")
-if not imagemagick:
-    imagemagick = Path("imagemagick/convert.exe")
-    if not imagemagick.exists():
-        imagemagick = None
 
 # Check for gifsicle
 gifsicle: Union[Path, str, None] = None

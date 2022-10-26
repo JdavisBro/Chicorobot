@@ -8,7 +8,6 @@ venv
 Export_Sprites/
 TOKEN.txt
 update.sh
-imagemagick
 gifsicle
 userdata/
 data/level_data

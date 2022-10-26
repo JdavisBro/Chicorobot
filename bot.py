@@ -96,7 +96,7 @@ async def command_error(interaction: discord.Interaction, error):
         await send(f"Hair `{error.hair}` could not be found.", ephemeral=ephemeral)
     elif isinstance(error, errors.ExpressionNotFound):
         await send(f"Expression `{error.expression}` could not be found.", ephemeral=ephemeral)
-    elif isinstance(error, errors.InvalidFrame):
+    elif isinstance(error, (errors.InvalidFrame, errors.GifError)):
         return
     elif isinstance(error, errors.SaveNotUploaded):
         await send("Your save data has not been uploaded yet. Use `/save upload` to do that!")

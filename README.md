@@ -20,9 +20,9 @@ Move an Export_Sprites (with bounds) into this dir
 
 `py sort_export.py`
 
-Install [image magick](https://imagemagick.org/script/download.php)
+Install [gifsicle](https://www.lcdf.org/gifsicle/)
 
-(put into imagemagick dir if you want portable (windows only))
+(put into gifsicle/ dir if you want portable (windows only))
 
 `py -m pip install -r requirements.txt`
 

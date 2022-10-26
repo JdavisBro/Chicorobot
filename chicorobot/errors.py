@@ -38,3 +38,6 @@ class InvalidFrame(Exception):
 
 class SaveNotUploaded(Exception):
     pass
+
+class GifError(Exception):
+    pass

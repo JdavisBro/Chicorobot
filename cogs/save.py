@@ -175,23 +175,24 @@ class SaveCog(commands.Cog):
                 timelapsepaint = timelapsebytes.read()
             im = await self.draw_paint(timelapsepaint, palette)
             im = im.resize((im.size[0]*8, im.size[1]*8), resample=0)
-            im.save(temp / f"{i:03}.png")
+            im.save(temp / f"{i:03}.gif")
         process = await asyncio.create_subprocess_shell(
-            f"{imagemagick} -delay 1x8 -loop 1 -dispose Background {temp / '*.png'} {temp / 'out.gif'}",
+            f"{gifsicle} --delay 12 --disposal bg --loopcount=0 {temp / '*.gif'}",
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE
         )
-        await process.communicate()
+        stdout, stderr = await process.communicate()
         if process.returncode != 0: # Error
             f = BytesIO()
             with zipfile.ZipFile(f, "x") as zipf:
-                for i in temp.glob("*.png"):
+                for i in temp.glob("*.gif"):
                     zipf.write(i, i.relative_to(temp))
             f.seek(0)
             file = discord.File(f, f"{screen_name}.zip")
             gif_fail = " gif conversion failed"
         else:
-            file = discord.File(temp / "out.gif", f"{screen_name}.gif")
+            gifdata = BytesIO(stdout)
+            file = discord.File(gifdata, f"Dog.gif")
             gif_fail = ""
         await interaction.followup.send(f"`{screen_name}`{gif_fail}:", file=file)
         file.close()
