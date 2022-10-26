@@ -140,7 +140,6 @@ class DogCog(commands.Cog):
         
         def put_image(im2, x=0, y=0):
             pos = [int(x)+buffer_add,int(y)+buffer_add]
-            print(pos, body_x, body_y)
             im3 = Image.new("RGBA", buffer_size, (0,0,0,0))
             im3.paste(im2, pos)
             im.alpha_composite(im3)
@@ -156,7 +155,6 @@ class DogCog(commands.Cog):
             resize = (resize[0] + buffer_add*2, resize[1] + buffer_add*2)
             if resize != im.size:
                 im = im.resize(resize)
-            print(im2.size, im.size)
             put_image(im, x-buffer_add, y-buffer_add)
 
         if not nobody:
