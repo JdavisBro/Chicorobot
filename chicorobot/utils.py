@@ -5,6 +5,7 @@ from typing import Union
 
 __all__ = (
     "gifsicle",
+    "imagemagick",
     "to_titlecase",
     "from_bgr_decimal"
 )
@@ -16,6 +17,17 @@ if not gifsicle:
     gifsicle = Path("gifsicle/gifsicle.exe")
     if not gifsicle.exists():
         gifsicle = None
+
+# Check for imagemagick
+imagemagick: Union[Path, str, None] = None
+if sys.platform.startswith("win32") or sys.platform.startswith("cygwin"):
+    imagemagick = shutil.which("magick")
+else:
+    imagemagick = shutil.which("convert")
+if not imagemagick:
+    imagemagick = Path("imagemagick/convert.exe")
+    if not imagemagick.exists():
+        imagemagick = None
 
 def to_titlecase(string):
     if "-" in string:

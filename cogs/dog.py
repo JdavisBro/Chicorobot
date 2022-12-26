@@ -348,10 +348,11 @@ class DogCog(commands.Cog):
                     cropfull[1] = min(crop[1], cropfull[1])
                     cropfull[2] = max(crop[2], cropfull[2])
                     cropfull[3] = max(crop[3], cropfull[3])
-                im.save(temp / f"{frame:03}.gif")
-            addcrop = f"--crop {cropfull[0]},{cropfull[1]}-{cropfull[2]},{cropfull[3]} "
+                im.save(temp / f"{frame:03}.png")
+            addcrop = f"-crop {cropfull[2]-cropfull[0]}x{cropfull[3]-cropfull[1]}+{cropfull[0]}+{cropfull[1]} +repage "
+            print( f"{imagemagick} -delay 1x8 -loop 0 -dispose Background {addcrop}{temp / '*.png'} {temp / 'out.gif'}")
             process = await asyncio.create_subprocess_shell(
-                f"{gifsicle} --delay 12 --disposal bg --loopcount=0 {addcrop}{temp / '*.gif'}",
+                f"{imagemagick} -delay 1x8 -loop 0 -dispose Background {addcrop}{temp / '*.png'} {temp / 'out.gif'}",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE
             )
@@ -361,8 +362,7 @@ class DogCog(commands.Cog):
                 await interaction.followup.send("Gif Conversion Failed. :(")
                 raise errors.GifError()
             else:
-                gifdata = BytesIO(stdout)
-                file = discord.File(gifdata, f"Dog.gif")
+                file = discord.File(temp / "out.gif", f"Dog.gif")
         await interaction.followup.send(content=f"Dog:\n`/dog expression:{expression} clothes:{clothes} hat:{hat} hair:{hair} hat2:{hat2} animation:{animation} animated:{animated} body_col:{('#%02x%02x%02x' % body_col) if isinstance(body_col, tuple) else body_col} clothes_col:{('#%02x%02x%02x' % clothes_col) if isinstance(clothes_col, tuple) else clothes_col} hat_col:{('#%02x%02x%02x' % hat_col) if isinstance(hat_col, tuple) else hat_col}`{extra_text}", file=file, view=view)
         file.close()
         del_temp()

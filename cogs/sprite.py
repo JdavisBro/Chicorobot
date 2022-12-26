@@ -315,7 +315,7 @@ async def create_sprite(
             except ValueError:
                 pass # Blank Image
         if animated:
-            im.save(temp / (f"{frameN:03}." + ("gif" if not output_zip else "png")))
+            im.save(temp / f"{frameN:03}.png")
             frameN += 1
         else:
             if crop_transparency and crop:
@@ -348,27 +348,28 @@ async def create_sprite(
         file = discord.File(imbyte, f"{name}..png")
         return out, file, msg, None
 
+    giferror = False
+
     if animated and not output_zip:
         await msg.edit(content="Combining Images (2/2)")
-        addcrop = f"--crop {crop[0]},{crop[1]}-{crop[2]},{crop[3]} " if crop_transparency else ""
+        addcrop = f"-crop {crop[2]-crop[0]}x{crop[3]-crop[1]}+{crop[0]}+{crop[1]} +repage " if crop_transparency else ""
         process = await asyncio.create_subprocess_shell(
-            f"{gifsicle} --delay {int(1/animation_fps*100)} --disposal bg --loopcount=0 {addcrop}{temp / '*.gif'}",
+            f"{imagemagick} -delay 1x{animation_fps} -loop 0 -dispose Background {addcrop}{temp / '*.png'} {temp / 'out.gif'}", # futrue? limit memory with "-limit memory 166MiB -limit map 334MiB" or smth OR use env vars MAGICK_MEMORY_LIMIT, MAGICK_MAP_LIMIT
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE
         )
         stdout, stderr = await process.communicate()
         if process.returncode != 0: # Error
             print(f"GIF CONVERSION ERROR: {stderr.decode()}")
-            await msg.edit("Gif Conversion Failed. :(")
-            raise errors.GifError()
+            output_zip = True
+            giferror = True
         else:
-            gifdata = BytesIO(stdout)
             out = f"{name} at {animation_fps} fps:{data}\n"
-            file = discord.File(gifdata, f"{name}.gif")
+            file = discord.File(temp / "out.gif", f"{name}.gif")
             return out, file, msg, temp
 
     if animated and output_zip:
-        await msg.edit(content=f"Zipping PNGs (2/2)")
+        await msg.edit(content=f"Zipping PNGs"+ (", Gif Conversion Failed" if giferror else "") +" (2/2)")
         f = BytesIO()
         with zipfile.ZipFile(f, "x") as zipf:
             for i in temp.glob("*.png"):

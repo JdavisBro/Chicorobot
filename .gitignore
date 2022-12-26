@@ -9,5 +9,6 @@ Export_Sprites/
 TOKEN.txt
 update.sh
 gifsicle
+imagemagick
 userdata/
 data/level_data
