@@ -48,9 +48,6 @@ class Chicorobot(commands.Bot):
         else:
             guild = discord.Object(947898290735833128) # gayz
 
-        tree.copy_global_to(guild=guild)
-        await tree.sync(guild=guild)
-
         self.add_view(bot.SpriteModificationView)
         self.add_view(bot.RandomRepeatView)
         
