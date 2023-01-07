@@ -43,10 +43,14 @@ class Chicorobot(commands.Bot):
         await bot.load_extension("cogs.dog")
         await bot.load_extension("cogs.save")
 
-        if len(sys.argv) > 1 and sys.argv[1] == "test": # just for me to test easily :D
-            guild = discord.Object(473976215301128193) # msmg
+        if len(sys.argv) > 1 and "test" in sys.argv: # just for me to test easily :D
+            self.guild = discord.Object(473976215301128193) # msmg
         else:
-            guild = discord.Object(947898290735833128) # gayz
+            self.guild = discord.Object(947898290735833128) # gayz
+
+        if len(sys.argv) > 1 and "sync" in sys.argv:
+            self.bot.tree.copy_global_to(guild=self.guild)
+            await self.bot.tree.sync(guild=self.guild)
 
         self.add_view(bot.SpriteModificationView)
         self.add_view(bot.RandomRepeatView)

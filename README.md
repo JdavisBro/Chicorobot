@@ -27,14 +27,16 @@ Install [gifsicle](https://www.lcdf.org/gifsicle/)
 `py -m pip install -r requirements.txt`
 
 Discord takes about an hour to propagate global app commands, to speed this up I sync to the gbj server since it's the only one the bot will be used in.
-To make it sync to your server change line 45 (currently, make sure it looks like below)
+To make it sync to your server change line 49 (currently, make sure it looks like below)
 
 ```py
-guild = discord.Object(947898290735833128)
+self.guild = discord.Object(947898290735833128) # gayz
 ```
 
 Change the id (`947898290735833128`) to the id of the server you wanna use this in
 
-run `py bot.py`
+on first run `py bot.py sync` to sync app commands
+
+for subsequent runs (with synced commands) `py bot.py`
 
 Make sure when you make your oauth url you tick app commands.
