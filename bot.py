@@ -49,8 +49,8 @@ class Chicorobot(commands.Bot):
             self.guild = discord.Object(947898290735833128) # gayz
 
         if len(sys.argv) > 1 and "sync" in sys.argv:
-            self.bot.tree.copy_global_to(guild=self.guild)
-            await self.bot.tree.sync(guild=self.guild)
+            self.tree.copy_global_to(guild=self.guild)
+            await self.tree.sync(guild=self.guild)
 
         self.add_view(bot.SpriteModificationView)
         self.add_view(bot.RandomRepeatView)

@@ -1,0 +1,3 @@
+[submodule "chicory-level-screenshots"]
+	path = chicory-level-screenshots
+	url = https://github.com/chicory-pizza/chicory-level-screenshots
