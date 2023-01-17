@@ -20,7 +20,7 @@ spr = Path("Export_Sprites/")
 gayim = Image.open("chicorobot/gay.png").convert("RGBA")
 
 async def colour_image(im, colour):
-    if colour == "gay":
+    if colour.lstrip("#") == "gay":
         return ImageChops.multiply(im, gayim.resize(im.size))
     if isinstance(colour, str): # String, Hex
         colour = colour.lstrip("#").lower()

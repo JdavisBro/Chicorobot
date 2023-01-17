@@ -117,6 +117,9 @@ class SpriteInputModal(discord.ui.Modal, title="Input!"):
             hex_fail = False
             for i, item in enumerate(self.children):
                 v = item.value.lstrip("#")
+                if v == "gay":
+                    self.data[f"colour_{i+1}"] = item.value
+                    continue
                 try:
                     int(v, base=16)
                 except ValueError:
