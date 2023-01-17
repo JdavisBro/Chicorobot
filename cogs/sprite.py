@@ -117,7 +117,7 @@ class SpriteInputModal(discord.ui.Modal, title="Input!"):
             hex_fail = False
             for i, item in enumerate(self.children):
                 v = item.value.lstrip("#")
-                if v == "gay":
+                if v == "gay" or v == "chicory":
                     self.data[f"colour_{i+1}"] = item.value
                     continue
                 try:
@@ -208,10 +208,13 @@ async def create_sprite(
     
     if isinstance(colour_1, str): # Users COULD put any number of #'s and it'd be a valid colour because of lstrip so to not break anything i'll make sure it's only 1
         colour_1 = "#" + colour_1.lstrip("#")
+        if colour_1 == "#gay" or colour_1 == "#chicory": colour_1 = colour_1.lstrip("#")
     if isinstance(colour_2, str):
         colour_2 = "#" + colour_2.lstrip("#")
+        if colour_2 == "#gay" or colour_2 == "#chicory": colour_2 = colour_2.lstrip("#")
     if isinstance(colour_3, str):
         colour_3 = "#" + colour_3.lstrip("#")
+        if colour_3 == "#gay" or colour_3 == "#chicory": colour_3 = colour_3.lstrip("#")
 
     if output_zip and not animated:
         animated = True
