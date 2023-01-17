@@ -233,7 +233,7 @@ class DogCog(commands.Cog):
                 if h != "Custom":
                     im2 = await sprites.hat.load_frame(h, colour=hat_col)
                 else:
-                    im2 = custom_hat
+                    im2 = await colour_image(custom_hat, hat_col)
                 put_rotate_resize(im2, hat_x, hat_y, head_ang, hat_origin)
 
         async def do_ear():
