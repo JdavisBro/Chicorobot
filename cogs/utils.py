@@ -117,11 +117,11 @@ class Utils(commands.Cog):
         await interaction.response.send_message(content="I hath been slayn.")
         await self.bot.close()
 
-    @app_commands.command(description="Death.")
+    @app_commands.command(description="Sink.")
     @is_owner()
     async def sync(self, interaction: discord.Interaction):
-        self.bot.tree.copy_global_to(guild=self.guild)
-        await self.bot.tree.sync(guild=self.guild)
+        self.bot.tree.copy_global_to(guild=self.bot.guild)
+        await self.bot.tree.sync(guild=self.bot.guild)
 
 
     @app_commands.command(description="Realods a cog")
