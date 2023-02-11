@@ -120,8 +120,10 @@ class Utils(commands.Cog):
     @app_commands.command(description="Sink.")
     @is_owner()
     async def sync(self, interaction: discord.Interaction):
+        await interaction.response.defer()
         self.bot.tree.copy_global_to(guild=self.bot.guild)
         await self.bot.tree.sync(guild=self.bot.guild)
+        await interaction.followup.send("Sunk.", ephemeral=True)
 
 
     @app_commands.command(description="Realods a cog")
