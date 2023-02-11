@@ -467,6 +467,12 @@ class SpriteCog(commands.Cog):
         self.bot = bot
         self.ctx_menu = app_commands.ContextMenu(name="Get Sprite Info", callback=self.sprite_info, extras={"ephemeral": True})
         bot.tree.add_command(self.ctx_menu)
+        modview = SpriteModificationView(1)
+        if not self.bot.SpriteModificationView:
+            self.bot.SpriteModificationView = modview
+            self.bot.add_view(self.bot.SpriteModificationView)
+        else:
+            self.bot.SpriteModificationView = modview
 
     async def cog_unload(self):
         self.bot.tree.remove_command(self.ctx_menu.name, type=self.ctx_menu.type)

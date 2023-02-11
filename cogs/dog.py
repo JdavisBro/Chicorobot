@@ -19,7 +19,6 @@ from chicorobot.utils import *
 
 async def setup(bot):
     await bot.add_cog(DogCog(bot))
-    bot.RandomRepeatView = RandomRepeatView(1)
 
 class RandomRepeatView(discord.ui.View):
     def __init__(self, data):
@@ -49,6 +48,12 @@ class DogCog(commands.Cog):
         self.chat = Path("userdata/custom_hat/")
         if not self.chat.exists():
             self.chat.mkdir()
+        randomview = RandomRepeatView(1)
+        if not self.bot.RandomRepeatView:
+            self.bot.RandomRepeatView = randomview
+            self.bot.add_view(self.bot.RandomRepeatView)
+        else:
+            self.bot.RandomRepeatView = randomview
 
     @app_commands.command(name="set_customs", description="Set the custom clothing and/or hat /dog should default to when none are given.")
     async def set_customs(self, interaction: discord.Interaction, clothes: discord.Attachment=None, hat: discord.Attachment=None):

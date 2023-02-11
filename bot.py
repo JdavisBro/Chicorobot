@@ -33,6 +33,8 @@ class Chicorobot(commands.Bot):
         self.previous_exec = None
         self.ownerid = 0
         self.last_error = None
+        self.SpriteModificationView = False
+        self.RandomRepeatView = False
 
     async def setup_hook(self):
         if not Path("userdata/").exists():
@@ -53,7 +55,6 @@ class Chicorobot(commands.Bot):
             await self.tree.sync(guild=self.guild)
 
         self.add_view(bot.SpriteModificationView)
-        self.add_view(bot.RandomRepeatView)
         
         appinfo = await bot.application_info()
         bot.ownerid = appinfo.owner.id
