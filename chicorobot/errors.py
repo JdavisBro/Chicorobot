@@ -41,3 +41,6 @@ class SaveNotUploaded(Exception):
 
 class GifError(Exception):
     pass
+
+class PropAnimationError(Exception):
+    pass

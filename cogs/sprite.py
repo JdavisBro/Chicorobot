@@ -15,7 +15,7 @@ from discord import app_commands
 from discord.ext import commands
 import numpy
 
-from chicorobot import autocomplete
+from chicorobot import autocomplete, errors
 from chicorobot.sprites import *
 from chicorobot.assets import *
 from chicorobot.utils import *
@@ -269,10 +269,15 @@ async def create_sprite(
         if len(anims) > 10:
             return await msg.edit(content="Too many animations in sequence. Max of 10 is allowed")
         for anim in anims:
+            anim = anim.strip()
+            if not anim: # blank, likely a trailing ;
+                continue
             if anim not in prop_animations[name]:
-                return await msg.edit(content=f"Invalid animation (`{anim}`). Use `/animations` to check animations or use command autocomplete!")
+                await interaction.followup.send(content=f"Invalid animation (`{anim}`). Use `/animations` to check animations or use command autocomplete!")
+                raise errors.PropAnimationError()
             if anim in disallowed_anims:
-                return await msg.edit(content=f"Animation `{anim}` has over 100 frames and so cannot be used more than once.")
+                await interaction.followup.send(content=f"Animation `{anim}` has over 100 frames and so cannot be used more than once.")
+                raise errors.PropAnimationError()
             animdata = prop_animations[name][anim]["frames"]
             if animdata["end"] - animdata["start"] >= 100:
                 disallowed_anims.append(anim)
@@ -488,6 +493,24 @@ class SpriteCog(commands.Cog):
         await msg.edit(content=out, attachments=[file], view=SpriteModificationView(animated=(temp is not None))) # idk if i wanna add create_sprite returning if it is animated (it can change with 1 frame sprites) but there being a temp is a 100% way to know
         file.close()
         del_temp(temp)
+
+    @app_commands.command(description="Show a sprite.")
+    @app_commands.describe(
+        sprite="The sprite to autocomplete animations for.",
+        animation_1="Sequence of animations, separated by a ;.", animation_2="Sequence of animations, separated by a ;.", animation_3="Sequence of animations, separated by a ;.",
+        animation_4="Sequence of animations, separated by a ;.", animation_5="Sequence of animations, separated by a ;.", animation_6="Sequence of animations, separated by a ;.",
+        animation_7="Sequence of animations, separated by a ;.", animation_8="Sequence of animations, separated by a ;.", animation_9="Sequence of animations, separated by a ;."
+    )
+    @app_commands.autocomplete(
+        sprite=autocomplete.animations_sprite,
+        animation_1=autocomplete.animation_seq, animation_2=autocomplete.animation_seq, animation_3=autocomplete.animation_seq,
+        animation_4=autocomplete.animation_seq, animation_5=autocomplete.animation_seq, animation_6=autocomplete.animation_seq,
+        animation_7=autocomplete.animation_seq, animation_8=autocomplete.animation_seq, animation_9=autocomplete.animation_seq
+    )
+    async def animation_sequence(self, interaction: discord.Interaction, sprite: str, animation_1: str, animation_2: str=None, animation_3: str=None, animation_4: str=None, animation_5: str=None, animation_6: str=None, animation_7: str=None, animation_8: str=None, animation_9: str=None):
+        anims = [animation_1, animation_2, animation_3, animation_4, animation_5, animation_6, animation_7, animation_8, animation_9]
+        anims = [i for i in anims if i]
+        await interaction.response.send_message(";".join(anims))
 
     # Get Sprite Info Context Menu
     async def sprite_info(self, interaction, message: discord.Message):
