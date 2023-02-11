@@ -416,11 +416,11 @@ async def create_sprite(
         delay_fps = f"-delay 1x{animation_fps} "
         if delays:
             if sum(delays) == len(delays): # all 1s
-                delay_fps = f"-delay {animation_speed}x60 " # TEST THIS!
+                delay_fps = f"-delay {animation_speed}x60 "
             else:
                 delay_fps = ""
                 im_list = ""
-                for i, path in enumerate(temp.glob("*.png")):
+                for i, path in enumerate(sorted(temp.glob("*.png"), key=lambda x: x.name)):
                     d = delays[i]
                     if d == 1:
                         d = f"{animation_speed}x60"
