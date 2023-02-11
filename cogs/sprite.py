@@ -500,7 +500,7 @@ class SpriteCog(commands.Cog):
         file.close()
         del_temp(temp)
 
-    @app_commands.command(description="Show a sprite.")
+    @app_commands.command(description="Make a animation_seq to copy into the /sprite command, for mobile users mostly.")
     @app_commands.describe(
         sprite="The sprite to autocomplete animations for.",
         animation_1="Sequence of animations, separated by a ;.", animation_2="Sequence of animations, separated by a ;.", animation_3="Sequence of animations, separated by a ;.",
