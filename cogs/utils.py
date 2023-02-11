@@ -21,14 +21,37 @@ class Utils(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @app_commands.command(description="Lists animations for a specific sprite")
+    @app_commands.command(description="Lists and shows info about animations for a specific sprite")
     @app_commands.autocomplete(sprite=autocomplete.animations_sprite)
     async def animations(self, interaction: discord.Interaction, sprite: str):
-        anims = []
-        for layer in sprites[sprite].get_layers():
-            if sprites[sprite][layer].anim_root:
-                anims += list(sprites[sprite][layer].anim_root)
-        await interaction.response.send_message(content=f"{sprite} animations: `{'`, `'.join(anims)}`")
+        if sprite not in prop_animations:
+            sprite = to_titlecase(sprite)
+            if sprite not in prop_animations:
+                return await interaction.response.send_message(content=f"`{sprite}` has no animations.")
+        anims = list(prop_animations[sprite].keys())
+        longest = max([len(i) for i in anims])
+        out = ""
+        for anim in anims:
+            out += f"`{anim: >{longest}}` - "
+            loop = prop_animations[sprite][anim]["loop"]
+            if loop == 1:
+                out += "loops"
+            elif loop == 0:
+                out += "doesn't loop"
+            elif isinstance(loop, str):
+                out += f"goes to `{loop}`"
+            elif isinstance(loop, list):
+                chances = {}
+                total = 0
+                for i in loop:
+                    if i not in chances:
+                        chances[i] = 0
+                    chances[i] += 1
+                    total += 1
+                out += "goes to one of "
+                out += ', '.join([f"`{i}`: {round(v/total*100)}%" for i, v in chances.items()])
+            out += "\n"
+        await interaction.response.send_message(content=f"`{sprite}` animations:\n{out}")
 
     @app_commands.command(description="Lists frames for a specific sprite")
     @app_commands.autocomplete(sprite=autocomplete.sprite)

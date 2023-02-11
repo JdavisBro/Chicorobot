@@ -23,15 +23,6 @@ async def code_name(interaction: discord.Interaction, current: str): # palette
         [i for i in palettes.keys()] + ["random"]
     ) if current in i][:25]
 
-async def animations_sprite(interaction: discord.Interaction, current: str): # animations
-    lst = []
-    for sprite in sprites.sprites():
-        if current.lower() not in sprite.lower():
-            continue
-        if [layer for layer in sprites[sprite].get_layers() if sprites[sprite][layer].anim_root]:
-            lst.append(sprite)
-            continue
-    return [app_commands.Choice(name=i, value=i) for i in lst]
 
 async def cog(interaction: discord.Interaction, current: str):
     if interaction.user.id != interaction.client.ownerid:
@@ -59,5 +50,26 @@ async def hair(interaction: discord.Interaction, current:str):
     ls = sorted(sprites.hair.get_frames())
     return [app_commands.Choice(name=i, value=i) for i in ls if current.lower() in i.lower()][:25]
 
-async def animation(interaction: discord.Interaction, current:str):
+async def animation(interaction: discord.Interaction, current:str): # DOG ANIMATIONS
     return [app_commands.Choice(name=i, value=i) for i in dog_animations.keys() if current.lower() in i][:25]
+
+async def animations_sprite(interaction: discord.Interaction, current: str): # PROP ANIMATIONS
+    return [app_commands.Choice(name=i, value=i) for i in prop_animations.keys() if current.lower() in i.lower()][:25]
+
+async def animation_seq(interaction: discord.Interaction, current:str):
+    sprite = str(interaction.namespace["sprite"])
+    if sprite not in prop_animations.keys():
+        return [app_commands.Choice(name=current, value=current), app_commands.Choice(name="Sprite incorrect or has no animations.", value="teehee ;)")]
+    current = current.split(";")
+    anim = current[-1]
+    anims = prop_animations[sprite].keys()
+    for i, cur in enumerate(current[:-1]):
+        if cur not in anims:
+            return [app_commands.Choice(name=";".join(current), value=";".join(current)), app_commands.Choice(name=f"Animation number {i+1} ({cur}) not found.", value="teehee ;)")]
+    suggest = []
+    for i in anims:
+        if anim in i:
+            c = current[:-1]
+            c.append(i)
+            suggest.append(";".join(c))
+    return [app_commands.Choice(name=i, value=i) for i in suggest][:25]

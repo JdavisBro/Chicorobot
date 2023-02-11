@@ -4,6 +4,9 @@ from pathlib import Path
 with Path("data/palettes.json").open("r") as f:
     palettes = json.load(f)
 
+with Path("data/prop_animations.json").open("r") as f:
+    prop_animations = json.load(f)
+
 all_colours = []
 for v in palettes.values():
     all_colours += v

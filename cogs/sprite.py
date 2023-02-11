@@ -35,7 +35,7 @@ def del_temp(temp):
 
 default_data = {
     "user": 0,
-    "sprite": "sprMarioRpg", "animated": False, "animation_name": None, "animation_fps": 10,
+    "sprite": "sprMarioRpg", "animated": False, "animation_seq": None, "animation_fps": 10, "animation_speed": 1,
     "crop_transparency": True, "use_frame": None, "output_zip": False,
     "colour_1": "#ffffff", "colour_2": "#ffffff", "colour_3": "#ffffff"
 }
@@ -83,12 +83,15 @@ class SpriteInputModal(discord.ui.Modal, title="Input!"):
             self.colour_2 = discord.ui.TextInput(label="Colour 2", default=data["colour_2"])
             self.colour_3 = discord.ui.TextInput(label="Colour 3", default=data["colour_3"])
             [self.add_item(i) for i in [self.colour_1, self.colour_2, self.colour_3]]
-        elif input_type == 2: # other_options
-            self.animation_name = discord.ui.TextInput(label="Animation Name (or `none`)", default=str(data["animation_name"]))
+        elif input_type == 2:
+            self.animation_seq = discord.ui.TextInput(label="Animation Sequence (or `none`)", default=str(data["animation_seq"]))
+            self.animation_speed = discord.ui.TextInput(label="Animation Speed", default=str(data["animation_speed"]))
+            [self.add_item(i) for i in [self.animation_seq, self.animation_speed]]
+        elif input_type == 3: # other_options
             self.animation_fps = discord.ui.TextInput(label="Animation FPS", default=data["animation_fps"])
             self.output_zip = discord.ui.TextInput(label="Output ZIP (`true` or `false`)", default=str(data["output_zip"]))
             self.crop_transparency = discord.ui.TextInput(label="Crop Transparency (`true` or `false`)", default=str(data["crop_transparency"]))
-            [self.add_item(i) for i in [self.animation_name, self.animation_fps, self.output_zip, self.crop_transparency]]
+            [self.add_item(i) for i in [self.animation_fps, self.output_zip, self.crop_transparency]]
 
     async def on_submit(self, interaction):
         if self.input_type == 0: # set_frame
@@ -135,10 +138,16 @@ class SpriteInputModal(discord.ui.Modal, title="Input!"):
             if hex_fail:
                 return await interaction.response.send_message("Invalid Hex", ephemeral=True, view=RetryModalView(self))
         elif self.input_type == 2:
-            if self.animation_name.value.lower() == "none":
-                self.data["animation_name"] = None
+            if self.animation_seq.value.lower() == "none":
+                self.data["animation_seq"] = None
             else:
-                self.data["animation_name"] = self.animation_name.value
+                self.data["animation_seq"] = self.animation_seq.value
+            try:
+                self.data["animation_speed"] = int(self.animation_speed.value)
+            except ValueError:
+                self.animation_speed.label = "Animation Speed - Invalid Number"
+                return await interaction.response.send_message("Invalid Number", ephemeral=True, view=RetryModalView(self))
+        elif self.input_type == 3:
             try:
                 self.data["animation_fps"] = int(self.animation_fps.value)
             except ValueError:
@@ -191,13 +200,17 @@ class SpriteModificationView(discord.ui.View):
     async def set_colours(self, interaction, button):
         await self.send_modal(interaction, 1)
 
+    @discord.ui.button(label="Animation Options", emoji="🏃", custom_id="spritemod:animation")
+    async def animation(self, interaction, button):
+        await self.send_modal(interaction, 2)
+
     @discord.ui.button(label="Other Options", emoji="⚙️", custom_id="spritemod:other_options")
     async def other_options(self, interaction, button):
-        await self.send_modal(interaction, 2)
+        await self.send_modal(interaction, 3)
 
 async def create_sprite(
         interaction: discord.Interaction,
-        sprite: str, animated: bool=False, animation_name: str=None, animation_fps: int=10,
+        sprite: str, animated: bool=False, animation_seq: str=None, animation_fps: int=10, animation_speed: int=1,
         crop_transparency: bool=True, use_frame: str=None, output_zip: bool=False,
         colour_1: str="#ffffff", colour_2: str="#ffffff", colour_3: str=None
     ):
@@ -219,8 +232,11 @@ async def create_sprite(
     if output_zip and not animated:
         animated = True
 
-    animation_fps = round(animation_fps)
-    animation_fps = min(max(animation_fps, 1), 50)
+    if animation_seq:
+        animation_fps = None
+    else:
+        animation_fps = round(animation_fps)
+        animation_fps = min(max(animation_fps, 1), 50)
 
     if (animated and not output_zip) and not gifsicle:
         await interaction.followup.send(content="Animated sprites are unavailable, making non animated version.")
@@ -241,7 +257,40 @@ async def create_sprite(
         sproot = "_".join(name.split("_")[:-1]) + "_"
         layers += [sprites[i]["1"] for i in [sproot+"B",sproot+"ear"]]
     
-    frames = sprite.layer.get_frames()
+    anims = None
+    delays = None
+    if not animation_seq:
+        frames = sprite.layer.get_frames()
+    else:
+        frames = []
+        delays = []
+        disallowed_anims = [] # For animations with more than 100 frames I disallow using them multiple times
+        anims = [i for i in animation_seq.split(";")]
+        if len(anims) > 10:
+            return await msg.edit(content="Too many animations in sequence. Max of 10 is allowed")
+        for anim in anims:
+            if anim not in prop_animations[name]:
+                return await msg.edit(content=f"Invalid animation (`{anim}`). Use `/animations` to check animations or use command autocomplete!")
+            if anim in disallowed_anims:
+                return await msg.edit(content=f"Animation `{anim}` has over 100 frames and so cannot be used more than once.")
+            animdata = prop_animations[name][anim]["frames"]
+            if animdata["end"] - animdata["start"] >= 100:
+                disallowed_anims.append(anim)
+            add_anim = True
+            for frame in range(animdata["start"], animdata["end"]+1):
+                if animdata["holds"] != -1 and str(frame) in animdata["holds"]:
+                    hold = animdata["holds"][str(frame)]
+                    if isinstance(hold, (int, float)):
+                        delays.append(hold)
+                    elif isinstance(hold, list):
+                        delays.append(hold[0]) # does the first hold currently, could add an option to randomize
+                else:
+                    delays.append(1)
+                if add_anim:
+                    frames.append((frame, anim))
+                    add_anim = False
+                else:
+                    frames.append(frame)
 
     wasanimated = False
     if len(frames) == 1 and animated:
@@ -287,8 +336,11 @@ async def create_sprite(
             frames = [f]
 
     crop = None
+    anim = None
 
     for frame in frames:
+        if isinstance(frame, tuple):
+            frame, anim = frame
         im = await sprite.layer.load_frame(frame, colour=colour_1)
         for i in sorted(layers[1:]):
             if isinstance(i, Layer):
@@ -297,15 +349,14 @@ async def create_sprite(
                 layer = sprite[i]
             if frame in layer.get_frames():
                 sproot = layer.root
-                f = frame
                 if layer.offset:
-                    f -= layer.offset
+                    frame -= layer.offset
                 col = colour_2 if i == "2" else colour_3
-                im2 = await layer.load_frame(f, anim=animation_name, colour=col)
+                im2 = await layer.load_frame(frame, anim=anim, colour=col)
                 im2n = numpy.array(im2)
                 im2n = numpy.where(im2n[:, :, 3] > 0)
-                if im2n[0].size == 0 and im2n[1].size == 0:
-                    im2 = await layer.load_frame(f, colour=col)
+                if (im2n[0].size == 0 and im2n[1].size == 0) and anim != None: # Image fully transparent and there is an animation
+                    im2 = await layer.load_frame(frame, colour=col) # use regular image instead of one from anim
                 im.alpha_composite(im2)
         if crop_transparency:
             imnp = numpy.array(im)
@@ -332,7 +383,7 @@ async def create_sprite(
 
     data = {
         "user": interaction.user.id,
-        "sprite": name, "animated": animated, "animation_name": animation_name, "animation_fps": animation_fps,
+        "sprite": name, "animated": animated, "animation_seq": animation_seq, "animation_fps": animation_fps or 10, "animation_speed": animation_speed,
         "crop_transparency": crop_transparency, "use_frame": use_frame, "output_zip": output_zip,
         "colour_1": colour_1, "colour_2": colour_2, "colour_3": colour_3
     }
@@ -350,6 +401,8 @@ async def create_sprite(
         imbyte = BytesIO()
         ims.save(imbyte, "PNG")
         imbyte.seek(0)
+        if isinstance(frames[0], tuple):
+            frames[0] = frames[0][0]
         out = f"{name} frame `{frames[0]}`{' (one frame sprite, animation not required)' if wasanimated else ''}:{data}\n"
         file = discord.File(imbyte, f"{name}..png")
         return out, file, msg, None
@@ -359,8 +412,23 @@ async def create_sprite(
     if animated and not output_zip:
         await msg.edit(content="Combining Images (2/2)")
         addcrop = f"-crop {crop[2]-crop[0]}x{crop[3]-crop[1]}+{crop[0]}+{crop[1]} +repage " if crop_transparency else ""
+        im_list = f"{temp}/*.png "
+        delay_fps = f"-delay 1x{animation_fps} "
+        if delays:
+            if sum(delays) == len(delays): # all 1s
+                delay_fps = f"-delay {animation_speed}x60 " # TEST THIS!
+            else:
+                delay_fps = ""
+                im_list = ""
+                for i, path in enumerate(temp.glob("*.png")):
+                    d = delays[i]
+                    if d == 1:
+                        d = f"{animation_speed}x60"
+                    else:
+                        d = d * 7.5 / 60 * 100 / animation_speed # centi seconds for some reason
+                    im_list += f"-delay {d} {path} "
         process = await asyncio.create_subprocess_shell(
-            f"{imagemagick} -delay 1x{animation_fps} -loop 0 -dispose Background {addcrop}{temp / '*.png'} {temp / 'out.gif'}", # futrue? limit memory with "-limit memory 166MiB -limit map 334MiB" or smth OR use env vars MAGICK_MEMORY_LIMIT, MAGICK_MAP_LIMIT
+            f"{imagemagick} -loop 0 -dispose Background {delay_fps}{im_list}{addcrop} {temp / 'out.gif'}",
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE
         )
@@ -370,7 +438,11 @@ async def create_sprite(
             output_zip = True
             giferror = True
         else:
-            out = f"{name} at {animation_fps} fps:{data}\n"
+            if anims:
+                out = f"{name}:{data}\n"
+                out += f"Animation Seq: `{'`, `'.join(anims)}`"
+            else:
+                out = f"{name} at {animation_fps} fps:{data}\n"
             file = discord.File(temp / "out.gif", f"{name}.gif")
             return out, file, msg, temp
 
@@ -396,19 +468,20 @@ class SpriteCog(commands.Cog):
 
     @app_commands.command(description="Show a sprite.")
     @app_commands.describe(
-        sprite="The sprite to show", animated="If True, sends an animated gif", animation_name="Name of the animation to use, get a list of them for a sprite using /animations.", animation_fps="If animated. Sets the FPS of the animation (max 50)",
+        sprite="The sprite to show", animated="If True, sends an animated gif", animation_seq="Sequence of animations, separated by a ;.",
+        animation_fps="If animated and animation_seq is NOT used, sets the FPS of the animation (max 50)", animation_speed="If animated and animation_seq is used, sets the speed to play the animation. (Best <=4)",
         crop_transparency="Removes any blank area around the image", use_frame="If not animated, choose a frame of the sprite to send (starts at 0)", output_zip="Outputs animation as a zip of PNGs for high quality."
     )
-    @app_commands.autocomplete(sprite=autocomplete.sprite)
+    @app_commands.autocomplete(sprite=autocomplete.sprite, animation_seq=autocomplete.animation_seq)
     async def sprite(
             self, interaction: discord.Interaction,
-            sprite: str, animated: bool=False, animation_name: str=None, animation_fps: int=10,
+            sprite: str, animated: bool=False, animation_seq: str=None, animation_fps: int=10, animation_speed: int=1,
             crop_transparency: bool=True, use_frame: str=None, output_zip: bool=False,
             colour_1: str="#ffffff", colour_2: str="#ffffff", colour_3: str=None
         ):
         out, file, msg, temp = await create_sprite(
             interaction,
-            sprite, animated, animation_name, animation_fps,
+            sprite, animated, animation_seq, animation_fps, animation_speed,
             crop_transparency, use_frame, output_zip,
             colour_1, colour_2, colour_3
         )
