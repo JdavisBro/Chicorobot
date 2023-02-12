@@ -141,7 +141,21 @@ class SpriteInputModal(discord.ui.Modal, title="Input!"):
             if self.animation_seq.value.lower() == "none":
                 self.data["animation_seq"] = None
             else:
-                self.data["animation_seq"] = self.animation_seq.value
+                seq = self.animation_seq.value.split(";")
+                if self.data["sprite"] in prop_animations:
+                    invalid_anims = [i for i in seq if i not in prop_animations[self.data["sprite"]] and i]
+                else:
+                    invalid_anims = []
+                if len(seq) >= 10:
+                    self.animation_seq.label = "Animation Sequence - Too Many (10 max)"
+                    return await interaction.response.send_message(f"Too Many Animations (10 max)", ephemeral=True, view=RetryModalView(self))
+                elif invalid_anims:
+                    self.animation_seq.label = "Animation Sequence - Invalid Animation"
+                    self.animation_speed.label = "Animation Speed" # in case it is invalid number
+                    return await interaction.response.send_message(f"Invalid Animation{'s' if (len(invalid_anims) > 1) else ''}: `{'`, `'.join(invalid_anims)}`", ephemeral=True, view=RetryModalView(self))
+                else:
+                    self.data["animation_seq"] = self.animation_seq.value
+                    self.animation_seq.label = "Animation Sequence" # incaise it is invalid animation / too many
             try:
                 self.data["animation_speed"] = int(self.animation_speed.value)
             except ValueError:
@@ -267,7 +281,8 @@ async def create_sprite(
         disallowed_anims = [] # For animations with more than 100 frames I disallow using them multiple times
         anims = [i for i in animation_seq.split(";")]
         if len(anims) > 10:
-            return await msg.edit(content="Too many animations in sequence. Max of 10 is allowed")
+            await interaction.followup.send(content="Too many animations in sequence. Max of 10 is allowed")
+            raise errors.PropAnimationError()
         for anim in anims:
             anim = anim.strip()
             if not anim: # blank, likely a trailing ;
