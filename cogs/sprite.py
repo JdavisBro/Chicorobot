@@ -525,7 +525,9 @@ class SpriteCog(commands.Cog):
         except ValueError:
             return await interaction.response.send_message("Sprite not found in the message.", ephemeral=True)
         embed = discord.Embed(title="Sprite Info")
-        for key in ["user", "sprite", "use_frame", "output_zip", "animated", "animation_name", "animation_fps", "colour_1", "colour_2", "colour_3"]:
+        for key in ["user", "sprite", "use_frame", "output_zip", "animated", "animation_name", "animation_seq", "animation_speed", "animation_fps", "colour_1", "colour_2", "colour_3"]:
+            if key not in data and key == "animation_name":
+                continue
             value = data[key]
             if key == "user":
                 value = f"<@{value}>"
