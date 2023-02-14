@@ -321,7 +321,7 @@ async def create_sprite(
     if animated:
         content += "s (1/2)"
     elif wasanimated:
-        content += " (single frame sprite, does not need to be animated)"
+        content += f" (single frame {'sprite' if not animation_seq else 'anim'}, does not need to be animated)"
     msg = await interaction.followup.send(content=content)
 
     frameN = 0
@@ -423,8 +423,12 @@ async def create_sprite(
         imbyte.seek(0)
         if isinstance(frames[0], tuple):
             frames[0] = frames[0][0]
-        out = f"{name} frame `{frames[0]}`{' (one frame sprite, animation not required)' if wasanimated else ''}:{data}\n"
-        file = discord.File(imbyte, f"{name}..png")
+        out = f"{name} frame `{frames[0]}`:{data}\n"
+        if wasanimated:
+            if animation_seq:
+                out += f"Animation Seq: `{anims[0]}`\n"
+            out += f"(Single frame {'sprite' if not animation_seq else 'anim'}, animation not required)"
+        file = discord.File(imbyte, f"{name}.png")
         return out, file, msg, None
 
     giferror = False
