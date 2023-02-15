@@ -9,9 +9,7 @@ async def sprite(interaction: discord.Interaction, current: str): # frames, spri
     return [app_commands.Choice(name=i, value=i) for i in lst if current.lower() in i.lower()][:25]
 
 async def area_name(interaction: discord.Interaction, current: str): # palette
-    lst = [i for i in sorted(
-        [i for i in paletteAliases.keys()] + ["Random"]
-    ) if current in i][:25]
+    lst = [i for i in sorted([i for i in paletteAliases.keys()] + ["Random"]) if current.lower() in i.lower()][:25]
     return [app_commands.Choice(name=i, value=i) for i in lst]
 
 async def random_palette(interaction: discord.Interaction, current: str): # random_dog
