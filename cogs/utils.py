@@ -29,17 +29,17 @@ class Utils(commands.Cog):
             if sprite not in prop_animations:
                 return await interaction.response.send_message(content=f"`{sprite}` has no animations.")
         anims = list(prop_animations[sprite].keys())
-        longest = max([len(i) for i in anims])
-        out = ""
+        outl = [["Anim", "Regularly loops/goes to", "Frames"]]
+        sound = False
         for anim in anims:
-            out += f"`{anim: >{longest}}` - "
+            outl.append([f"'{anim}'"])
             loop = prop_animations[sprite][anim]["loop"]
             if loop == 1:
-                out += "loops"
+                outl[-1].append("Loops")
             elif loop == 0:
-                out += "doesn't loop"
+                outl[-1].append("Doesn't loop")
             elif isinstance(loop, str):
-                out += f"goes to `{loop}`"
+                outl[-1].append(f"Goes to '{loop}'")
             elif isinstance(loop, list):
                 chances = {}
                 total = 0
@@ -48,10 +48,48 @@ class Utils(commands.Cog):
                         chances[i] = 0
                     chances[i] += 1
                     total += 1
-                out += "goes to one of "
-                out += ', '.join([f"`{i}`: {round(v/total*100)}%" for i, v in chances.items()])
-            out += "\n"
-        await interaction.response.send_message(content=f"`{sprite}` animations:\n{out}")
+                outl[-1].append("Goes to one of ")
+                outl[-1][-1] += ', '.join([f"'{i}': {round(v/total*100)}%" for i, v in chances.items()])
+            start = prop_animations[sprite][anim]['frames']['start']
+            end = prop_animations[sprite][anim]['frames']['end']
+            if start != end:
+                outl[-1].append(f"Frames '{start}' to '{end}'")
+            else:
+                outl[-1].append(f"Frame '{start}'")
+            sounds = prop_animations[sprite][anim]['frames']['sounds']
+            if sounds != -1:
+                soundlist = list(sounds.values())
+                soundlist = "', '".join(soundlist)
+                outl[-1].append(f"Plays: '{soundlist}'")
+                sound = True
+        longest1 = max([len(i[0]) for i in outl])
+        longest2 = max([len(i[1]) for i in outl])
+        longest3 = max([len(i[2]) for i in outl])
+        if sound:
+            outl[0].append("Sound(s)")
+        out = "`"
+        line1 = True
+        for l in outl:
+            out += f"{l[0]: >{longest1}} | "
+            out += f"{l[1]: >{longest2}} | "
+            out += f"{l[2]: >{longest3}}{' |' if sound else ''}"
+            if len(l) > 3:
+                out += f" {l[3]}"
+            if line1:
+                line1 = False
+                out += "`\n```"
+            else:
+                out += "\n"
+        out += "```"
+        if len(out) > 2000:
+            fileout = BytesIO()
+            fileout.write(out.replace("`", "").encode("utf-8"))
+            fileout.seek(0)
+            file = discord.File(fileout, filename=f"{sprite}_animations.txt")
+            await interaction.response.send_message(content="Animations too long, sent as file.", file=file)
+            file.close()
+        else:
+            await interaction.response.send_message(content=f"`{sprite}` animations:\n{out}")
 
     @app_commands.command(description="Lists frames for a specific sprite")
     @app_commands.autocomplete(sprite=autocomplete.sprite)
