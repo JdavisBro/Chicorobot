@@ -211,11 +211,6 @@ class DogCog(commands.Cog):
         im2 = Image.new("RGBA", (750, 750))
         im2.paste(im3)
         put_rotate_resize(im2, head_x, head_y, head_ang, head_origin)
-
-        # -- Clothing _2 -- #
-        if sprites.body2.is_frame(clothes+"_2") and not nobody:
-            im2 = await sprites.body2.load_frame(clothes+"_2", colour=clothes_col)
-            put_rotate_resize(im2, body_x, body_y, body_ang, body_origin)
         
         # -- Hats _1 -- #
         for h in [hat,hat2]:
@@ -229,6 +224,12 @@ class DogCog(commands.Cog):
                 raise errors.HairNotFound(hair)
             im2 = await sprites.hair.load_frame(hair, colour=body_col)
             put_rotate_resize(im2, hat_x, hat_y, head_ang, hat_origin)
+
+        # -- Clothing _2 -- #
+        async def do_cloth_2():
+            if sprites.body2.is_frame(clothes+"_2") and not nobody:
+                im2 = await sprites.body2.load_frame(clothes+"_2", colour=clothes_col)
+                put_rotate_resize(im2, body_x, body_y, body_ang, body_origin)
 
         # -- Hat -- #
         async def do_hat():
@@ -254,8 +255,10 @@ class DogCog(commands.Cog):
         if any([h in hatOverEar for h in [hat,hat2]]):
             await do_ear()
             await do_hat()
+            await do_cloth_2()
         else:
             await do_hat()
+            await do_cloth_2()
             await do_ear()
 
         # -- TRANSIT PASS -- #
