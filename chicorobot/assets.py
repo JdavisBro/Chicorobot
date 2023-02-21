@@ -1,11 +1,48 @@
 import json
 from pathlib import Path
 
+from chicorobot.sprites import sprites
+
+__all__ = (
+    "palettes",
+    "prop_animations",
+    "all_colours",
+    "randomablePalettes",
+    "hairHats",
+    "hatOverEar",
+    "extraHats",
+    "paletteAliases",
+    "expressions_alts",
+    "in_game_clothes",
+    "in_game_hats"
+)
+
 with Path("data/palettes.json").open("r") as f:
     palettes = json.load(f)
 
 with Path("data/prop_animations.json").open("r") as f:
     prop_animations = json.load(f)
+
+for sprite in sprites.sprites():
+    anims = []
+    spr = sprites[sprite]
+    for layer in spr.get_layers():
+        if spr[layer].anim_root:
+            for anim in spr[layer].anim_root:
+                if anim not in anims:
+                    anims.append(anim)
+    for anim in anims:
+        if sprite not in prop_animations:
+            prop_animations[sprite] = {}
+        if anim not in prop_animations[sprite]:
+            if sprite == "Mom" and "move" in anim:
+                prop_animations[sprite][anim] = prop_animations[sprite]["idle_move"]
+            elif "sit" in anim and "sit" in prop_animations[sprite]:
+                prop_animations[sprite][anim] = prop_animations[sprite]["sit"]
+            elif "idle" in prop_animations[sprite]:
+                prop_animations[sprite][anim] = prop_animations[sprite]["idle"]
+            else:
+                prop_animations[sprite][anim] = {"frames": {"start": 0, "end": len(spr.layer.get_frames())-1, "holds": -1, "sounds": -1}, "loop": 0, "bounce": 0}
 
 all_colours = []
 for v in palettes.values():

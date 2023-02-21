@@ -224,7 +224,7 @@ def main():
         else:
             add_deco(impath)
     with open("data/sprites.json", "w+") as f:
-        json.dump(spritesDict, f)
+        json.dump(spritesDict, f, sort_keys=True)
 
 def add_deco(path):
     pass
@@ -296,13 +296,35 @@ def add_sprite(path):
         spritesDict[sprite][layer]["root"] = f"sprDog_hat_"
     elif sprite == "Dog_expression":
         spritesDict[sprite][layer]["named_frames"][dogExpressions[frame]] = frame
-    elif layer_anim:
+    else: 
+        if frame not in spritesDict[sprite][layer]["frames"]:
+            spritesDict[sprite][layer]["frames"].append(frame)
+
+    if layer_anim:
         if "anim_root" not in spritesDict[sprite][layer]:
             spritesDict[sprite][layer]["anim_root"] = {}
-        spritesDict[sprite][layer]["anim_root"][layer_anim] = f"{layer_anim}_"
-    else: 
-        spritesDict[sprite][layer]["frames"].append(frame)
+        if sprite == "Pickle" and layer_anim == "blink":
+            spritesDict[sprite][layer]["anim_root"]["sit_blink"] = f"{layer_anim}_"
+        else:
+            spritesDict[sprite][layer]["anim_root"][layer_anim] = f"{layer_anim}_"
+            if sprite == "Mom":
+                spritesDict[sprite][layer]["anim_root"][layer_anim+"_move"] = f"{layer_anim}_"
+            elif sprite == "Pistachio" and layer_anim == "smile":
+                spritesDict[sprite][layer]["anim_root"]["sit_smile"] = f"{layer_anim}_"
 
+    if sprite == "Chicory_ok" and layer == 4:
+        for spr in ["Chicory_idle", "Chicory_postgame", "Chicory_postgame2"]:
+            if spr not in spritesDict:
+                spritesDict[spr] = {}
+            if layer not in spritesDict[spr]:
+                spritesDict[spr][layer] = {}
+                spritesDict[spr][layer]["root"] = "sprChicory_ok_layer4_"
+                spritesDict[spr][layer]["frames"] = []
+            if frame not in spritesDict[spr][layer]["frames"]:
+                spritesDict[spr][layer]["frames"].append(frame)
+            if "anim_root" in spritesDict[sprite][layer]:
+                spritesDict[spr][layer]["anim_root"] = spritesDict[sprite][layer]["anim_root"]
+    
     if sprite == "Logo" and layer == 2 and not layer_anim:
         if not "anim_root" in spritesDict[sprite][layer]:
             spritesDict[sprite][layer]["anim_root"] = {}

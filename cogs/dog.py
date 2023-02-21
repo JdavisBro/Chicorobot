@@ -242,6 +242,7 @@ class DogCog(commands.Cog):
                     im2 = await colour_image(custom_hat, hat_col)
                 put_rotate_resize(im2, hat_x, hat_y, head_ang, hat_origin)
 
+        # -- Ear -- #
         async def do_ear():
             im2 = await sprites[dog_ear].layer.load_frame(frame, colour=body_col)
             put_image(im2)
