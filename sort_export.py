@@ -260,6 +260,10 @@ def add_sprite(path):
 
     frame = int(name[-1])
 
+    if sprite == "Chicoryportrait":
+        sprite = "Chicoryportrait_" + str(layer)
+        layer = 1
+
     if sprite == "Logo" and layer == 2:
         frame += 8
 
@@ -272,7 +276,7 @@ def add_sprite(path):
 
     if layer not in spritesDict[sprite]:
         spritesDict[sprite][layer] = {}
-        if layer != 1:
+        if layer != 1 and not sprite.startswith("Chicoryportrait"):
             spritesDict[sprite][layer]["root"] = f"spr{sprite}_{'layer' if layer_text else ''}{layer}_"
         else:
             spritesDict[sprite][layer]["root"] = f"spr{sprite}_"
