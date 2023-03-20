@@ -73,6 +73,7 @@ class SaveCog(commands.Cog):
             with level_datafp.open() as f:
                 self.level_data = json.load(f)
         else:
+            self.level_data = {}
             logging.warn("data/level_data not found.")
 
     save = app_commands.Group(name="save", description="Commands to do with viewing save info.")
@@ -119,7 +120,7 @@ class SaveCog(commands.Cog):
         await dog.make_dog(interaction, expression, clothes, hat, hair, hat2, animation, animated, body_col, clothes_col, hat_col, custom_clothes, custom_hat)
 
     def get_palette(self, screen, save):
-        palette = self.level_data[screen].get("palette", "town")
+        palette = self.level_data.get(screen, {}).get("palette", "town")
         palette = [(i[0], i[1], i[2]) for i in palettes[palette]] + [from_bgr_decimal(save[3][f"custompaint_{i}"]) for i in range(8) if f"custompaint_{i}" in save[3]]
         palette = {hex(i+1)[-1]: c for i, c in enumerate(palette)}
         palette["0"] = (255, 255, 255)

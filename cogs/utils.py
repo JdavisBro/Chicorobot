@@ -182,7 +182,8 @@ class Utils(commands.Cog):
     @is_owner()
     async def sync(self, interaction: discord.Interaction):
         await interaction.response.defer()
-        self.bot.tree.copy_global_to(guild=self.bot.guild)
+        if self.guild:
+            self.bot.tree.copy_global_to(guild=self.bot.guild)
         await self.bot.tree.sync(guild=self.bot.guild)
         await interaction.followup.send("Sunk.", ephemeral=True)
 

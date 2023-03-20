@@ -48,10 +48,11 @@ class Chicorobot(commands.Bot):
         if len(sys.argv) > 1 and "test" in sys.argv: # just for me to test easily :D
             self.guild = discord.Object(473976215301128193) # msmg
         else:
-            self.guild = discord.Object(947898290735833128) # gayz
+            self.guild = None
 
         if len(sys.argv) > 1 and "sync" in sys.argv:
-            self.tree.copy_global_to(guild=self.guild)
+            if self.guild:
+                self.tree.copy_global_to(guild=self.guild)
             await self.tree.sync(guild=self.guild)
 
         self.add_view(bot.SpriteModificationView)
