@@ -58,8 +58,13 @@ async def animations_sprite(interaction: discord.Interaction, current: str): # P
 
 async def animation_seq(interaction: discord.Interaction, current:str):
     sprite = str(interaction.namespace["sprite"])
+    onincorrect = []
+    if current:
+        onincorrect.append(app_commands.Choice(name=current, value=current))
+    if sprite not in sprites.sprites():
+        return onincorrect+[app_commands.Choice(name=f"Sprite {sprite} not found.", value="teehee ;)")]
     if sprite not in prop_animations.keys():
-        return [app_commands.Choice(name=current, value=current), app_commands.Choice(name="Sprite incorrect or has no animations.", value="teehee ;)")]
+        return onincorrect+[app_commands.Choice(name=f"Sprite {sprite} has no animations.", value="teehee ;)")]
     current = current.split(";")
     anim = current[-1]
     anims = prop_animations[sprite].keys()

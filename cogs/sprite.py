@@ -287,8 +287,11 @@ async def create_sprite(
             anim = anim.strip()
             if not anim: # blank, likely a trailing ;
                 continue
-            if anim not in prop_animations[name]:
-                await interaction.followup.send(content=f"Invalid animation (`{anim}`). Use `/animations` to check animations or use command autocomplete!")
+            if name not in prop_animations or anim not in prop_animations[name]:
+                if animation_seq == "teehee ;)":
+                    await interaction.followup.send(content=f"Invalid animation (`{anim}`). Use `/animations` to check animations or use command autocomplete! teehee ;)")
+                else:
+                    await interaction.followup.send(content=f"Invalid animation (`{anim}`). Use `/animations` to check animations or use command autocomplete!")
                 raise errors.PropAnimationError()
             if anim in disallowed_anims:
                 await interaction.followup.send(content=f"Animation `{anim}` has over 100 frames and so cannot be used more than once.")
