@@ -35,6 +35,7 @@ class Chicorobot(commands.Bot):
         self.last_error = None
         self.SpriteModificationView = False
         self.RandomRepeatView = False
+        self.HareRandomRepeatView = False
 
     async def setup_hook(self):
         if not Path("userdata/").exists():

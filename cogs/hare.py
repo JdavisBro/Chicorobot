@@ -20,24 +20,22 @@ from chicorobot.utils import *
 async def setup(bot):
     await bot.add_cog(HareCog(bot))
 
-# class RandomRepeatView(discord.ui.View):
-#     def __init__(self, data):
-#         super().__init__(timeout=None)
-#         self.repeat.label = f"Repeat! ({data})"
+class RandomRepeatView(discord.ui.View):
+    def __init__(self, data):
+        super().__init__(timeout=None)
+        self.repeat.label = f"Repeat! ({data})"
 
-#     @discord.ui.button(label="Repeat! (0)", emoji="🔁", custom_id="randomrepeat:repeat")
-#     async def repeat(self, interaction, button):
-#         dog = interaction.client.get_cog("DogCog")
-#         i = button.label.index("(") + 1
-#         data = int(button.label[i:button.label.index(")",i)])
-#         use_in_game_colors = bool(data & 0b00001)
-#         random_palette =     bool(data & 0b00010)
-#         add_hat2 =           bool(data & 0b00100)
-#         animated =           bool(data & 0b01000)
-#         random_animation =   bool(data & 0b10000)
-#         for cmd in dog.walk_app_commands():
-#             if cmd.name == "random_dog":
-#                 await cmd.callback(dog, interaction, use_in_game_colors, ("Random" if random_palette else "None"), add_hat2, animated, random_animation)
+    @discord.ui.button(label="Repeat! (0)", emoji="🔁", custom_id="randomrepeat:hare")
+    async def repeat(self, interaction, button):
+        hare = interaction.client.get_cog("HareCog")
+        i = button.label.index("(") + 1
+        data = int(button.label[i:button.label.index(")",i)])
+        use_in_game_colors = bool(data & 0b00001)
+        random_palette =     bool(data & 0b00010)
+        add_hat2 =           bool(data & 0b00100)
+        for cmd in hare.walk_app_commands():
+            if cmd.name == "random_hare":
+                await cmd.callback(hare, interaction, use_in_game_colors, ("Random" if random_palette else "None"), add_hat2)
 
 class HareCog(commands.Cog):
     def __init__(self, bot):
@@ -55,12 +53,12 @@ class HareCog(commands.Cog):
         # self.chat = Path("userdata/custom_hat/")
         # if not self.chat.exists():
         #     self.chat.mkdir()
-        # randomview = RandomRepeatView(1)
-        # if not self.bot.RandomRepeatView:
-        #     self.bot.RandomRepeatView = randomview
-        #     self.bot.add_view(self.bot.RandomRepeatView)
-        # else:
-        #     self.bot.RandomRepeatView = randomview
+        randomview = RandomRepeatView(1)
+        if not self.bot.HareRandomRepeatView:
+            self.bot.HareRandomRepeatView = randomview
+            self.bot.add_view(self.bot.HareRandomRepeatView)
+        else:
+            self.bot.HareRandomRepeatView = randomview
 
     # Actually makes the hare images
     async def make_hare_image(
@@ -150,6 +148,7 @@ class HareCog(commands.Cog):
             put_rotate_resize(im2, body_x, body_y, body_ang, resize=(im2.width // 4, im2.height // 4))
 
         im2 = Image.open("data/hareCapeCover.png")
+        im2 = await colour_image(im2, clothes_col)
         put_image(im2)
 
         im2 = await sprites["Chicory_idle"]["2"].load_frame(frame, colour=body_col)
@@ -267,7 +266,6 @@ class HareCog(commands.Cog):
     @app_commands.describe(use_in_game_colors="Only use colours from the game. Default: True", use_palette="Specify palette to be used, can be None or Random. Default: None" , add_hat2="Add a random hat2. Default: False")
     @app_commands.autocomplete(use_palette=autocomplete.random_palette)
     async def random_hare(self, interaction: discord.Interaction, use_in_game_colors: bool=True, use_palette: str="None", add_hat2: bool=False):
-        global colour_image
         active = False
         if random.randint(0,199) == 0:
             active = True
@@ -294,8 +292,8 @@ class HareCog(commands.Cog):
             coltwo = discord.Colour.random()
             colthree = discord.Colour.random()
         view = discord.utils.MISSING
-        if use_palette in ["Random", "None"] and False:
-            #value = (0b10000 * random_animation) + (0b01000 * animated) + (0b00100 * add_hat2) + (0b00010 * (use_palette == "Random")) + (0b00001 * use_in_game_colors)
+        if use_palette in ["Random", "None"]:
+            value = (0b00100 * add_hat2) + (0b00010 * (use_palette == "Random")) + (0b00001 * use_in_game_colors)
             view = RandomRepeatView(value)
         await self.make_hare(
             interaction,
