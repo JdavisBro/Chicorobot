@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 from typing import Union
 
+import discord
 from PIL import Image, ImageChops
 
 from chicorobot import errors
@@ -34,6 +35,8 @@ async def colour_image(im, colour):
         except ValueError:
             raise errors.ColourError()
     else: # Tuple
+        if isinstance(colour, discord.Colour):
+            colour = colour.to_rgb()
         if colour == (255, 255, 255): # WHITE, no need to colour :D
             return im
         colour = tuple(list(colour) + [255])
