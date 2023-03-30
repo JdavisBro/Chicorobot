@@ -77,7 +77,7 @@ hairHats = (
     "Shawl",
     "Sparkles",
     "Spike",
-    "Square Glases",
+    "Square Glasses",
     "Stache",
     "Stormy",
     "Studs",
