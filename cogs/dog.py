@@ -27,6 +27,7 @@ class RandomRepeatView(discord.ui.View):
 
     @discord.ui.button(label="Repeat! (0)", emoji="🔁", custom_id="randomrepeat:repeat")
     async def repeat(self, interaction, button):
+        return
         dog = interaction.client.get_cog("DogCog")
         i = button.label.index("(") + 1
         data = int(button.label[i:button.label.index(")",i)])
