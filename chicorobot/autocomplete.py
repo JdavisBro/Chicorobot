@@ -36,6 +36,10 @@ async def expression(interaction: discord.Interaction, current: str):
     ls = ["normal"] + sorted([i.stem for i in Path("expressions/").iterdir()], key=lambda i: i.replace("custom ", "z"))
     return [app_commands.Choice(name=i, value=i) for i in ls if current.lower() in i.lower()][:25]
 
+async def hare_expression(interaction: discord.Interaction, current: str):
+    ls = ["normal"] + [i for i in sprites["Chicory_ok"]["4"].anim_root.keys()]
+    return [app_commands.Choice(name=i, value=i) for i in ls if current.lower() in i.lower()][:25]
+
 async def clothes(interaction: discord.Interaction, current: str):
     ls = sorted(sprites.body.get_frames() + ["Custom"])
     return [app_commands.Choice(name=i, value=i) for i in ls if current.lower() in i.lower()][:25]
