@@ -17,6 +17,9 @@ from chicorobot.assets import *
 from chicorobot.sprites import *
 from chicorobot.utils import *
 
+# This code is heavily a modified version of dog.py and incredibly hardcoded
+# eww
+
 async def setup(bot):
     await bot.add_cog(HareCog(bot))
 
@@ -43,16 +46,6 @@ class HareCog(commands.Cog):
         self.dog = bot.get_cog("DogCog")
         self.cclothes = self.dog.cclothes
         self.chat = self.dog.chat
-        if self.bot.tree.get_command("dog"):
-            self.bot.tree.remove_command("dog")
-            self.bot.tree.remove_command("random_dog")
-            self.bot.tree.get_command("save").remove_command("dog")
-        # self.cclothes = Path("userdata/custom_clothes/")
-        # if not self.cclothes.exists():
-        #     self.cclothes.mkdir()
-        # self.chat = Path("userdata/custom_hat/")
-        # if not self.chat.exists():
-        #     self.chat.mkdir()
         randomview = RandomRepeatView(1)
         if not self.bot.HareRandomRepeatView:
             self.bot.HareRandomRepeatView = randomview
@@ -63,35 +56,38 @@ class HareCog(commands.Cog):
     # Actually makes the hare images
     async def make_hare_image(
         self, expression, clothes, hat, hair, hat2,
-        frame,
         body_col, clothes_col, hat_col,
         custom_clothes, custom_hat
     ):
-        # animation_name = animation.lower()
-
-        # if animation_name == "idle":
-        #     base_size = (750, 750)
-        #     scale = 5
-        #     to_scale = 1
-        # else:
-        #     base_size = (150, 150)
-        #     scale = 1
-        #     to_scale = 5
-
-
-        body_ang = 0
         body_x = 50 + 252
         body_y = 50 + 350
 
-        head_ang = 0
-
         hat_x = 50 + 283
         hat_y = 50 + 390
+        hair_x = 50 + 283
+        hair_y = 50 + 390
+        if "Glasses" in hat or "Shades" in hat or hat == "Horns": # lol dw about this code ignore it
+            hat_x -= 7
+            hat_y -= 5
+            if hat == "Horns":
+                hat_y -= 1
+        hat_scale = 1
+        if hat in ["Beak", "Beard", "Clown", "Stache", "Sparkles", "Mask"]:
+            hat_scale = 0.5
+            hat_x += 25
+            hat_y += 15
+            if hat == "Mask":
+                hat_y += 10
 
-        clothmask = Image.open("data/hareClothesMask.png")
+        if clothes in ["Smock", "Sequins"]:
+            clothmask = Image.open("chicorobot/hareClothesMask.png")
+        elif clothes in ["Bee", "Hiker"]:
+            clothmask = None
+        else:
+            clothmask = Image.open("chicorobot/hareClothesMaskLess.png")
 
         # -- Chicory layer 1 -- #
-        im2 = await sprites["Chicory_idle"].layer.load_frame(frame, colour=clothes_col)
+        im2 = await sprites["Chicory_idle"].layer.load_frame(0, colour=clothes_col)
         base_size = im2.size
 
         buffer_add = 50
@@ -106,24 +102,23 @@ class HareCog(commands.Cog):
         
         put_image(im2)
         
-        im2 = Image.open("data/hareBackMask.png")
+        im2 = Image.open("chicorobot/hareBackMask.png")
         put_image(im2)
 
-        def put_rotate_resize(im, x, y, degrees, resize=base_size, body=False):
-            if body:
+        def put_resize(im, x, y, resize=base_size, body=False):
+            resize = (int(resize[0]), int(resize[1]))
+            im = im.transpose(0)
+            if body and clothmask:
                 im3 = Image.new("RGBA", im.size, (0,0,0,0))
                 im3.paste(im, mask=clothmask)
                 im = im3
             buffer_scaled = int(buffer_add)
-            # origin = (origin[0] + buffer_scaled, origin[1] + buffer_scaled)
             im2 = Image.new("RGBA", (im.width+buffer_scaled*2, im.height+buffer_scaled*2), (0,0,0,0))
             im2.paste(im, (buffer_scaled, buffer_scaled))
-            # im = im2.rotate(degrees, center=origin)
             im = im2
             resize = (resize[0] + buffer_add*2, resize[1] + buffer_add*2)
             if resize != im.size:
                 im = im.resize(resize)
-            im = im.transpose(0)
             put_image(im, x-buffer_add, y-buffer_add)
 
         if clothes != "Custom":
@@ -131,37 +126,37 @@ class HareCog(commands.Cog):
             if not sprites.body.is_frame(clothes):
                 raise errors.ClothingNotFound(clothes)
             im2 = await sprites.body.load_frame(clothes, colour=clothes_col)
-            put_rotate_resize(im2, body_x, body_y, body_ang, resize=(im2.width // 4, im2.height // 4), body=True)
+            put_resize(im2, body_x, body_y, resize=(im2.width // 4, im2.height // 4), body=True)
         else:
             # -- Custom Clothing -- #
             im2 = await colour_image(custom_clothes, clothes_col)
-            put_rotate_resize(im2, body_x, body_y, body_ang, resize=(im2.width // 4, im2.height // 4), body=True)
+            put_resize(im2, body_x, body_y, resize=(im2.width // 4, im2.height // 4), body=True)
 
         # -- Clothing _0 -- #
         if sprites.body2.is_frame(clothes+"_0"):
             im2 = await sprites.body2.load_frame(clothes + "_0", colour=hat_col)
-            put_rotate_resize(im2, body_x, body_y, body_ang, resize=(im2.width // 4, im2.height // 4))
+            put_resize(im2, body_x, body_y, resize=(im2.width // 4, im2.height // 4), body=True)
+
+        im2 = Image.open("chicorobot/hareCapeCover.png")
+        im2 = await colour_image(im2, clothes_col)
+        put_image(im2)
         
+        im2 = await sprites["Chicory_idle"]["2"].load_frame(0, colour=body_col)
+        put_image(im2)
+
+        im2 = await sprites["Chicory_idle"]["3"].load_frame(0, colour=clothes_col)
+        put_image(im2)
+
         # -- Clothing _1 -- #
         if sprites.body2.is_frame(clothes+"_1"):
             im2 = await sprites.body2.load_frame(clothes+"_1", colour=hat_col)
-            put_rotate_resize(im2, body_x, body_y, body_ang, resize=(im2.width // 4, im2.height // 4))
-
-        im2 = Image.open("data/hareCapeCover.png")
-        im2 = await colour_image(im2, clothes_col)
-        put_image(im2)
-
-        im2 = await sprites["Chicory_idle"]["2"].load_frame(frame, colour=body_col)
-        put_image(im2)
-
-        im2 = await sprites["Chicory_idle"]["3"].load_frame(frame, colour=clothes_col)
-        put_image(im2)
+            put_resize(im2, body_x, body_y-12, resize=(im2.width // 4, im2.height // 4))
         
         # -- Neck Hats -- #
         for h in [hat,hat2]:
             if h in extraHats:
                 im2 = await sprites.body2.load_frame(h+"_1", colour=hat_col)
-                put_rotate_resize(im2, body_x, body_y, body_ang, resize=(im2.width // 5, im2.height // 5))
+                put_resize(im2, body_x, body_y-12, resize=(im2.width // 4, im2.height // 4))
 
         # -- Expression -- #
         if expression == "normal":
@@ -173,14 +168,14 @@ class HareCog(commands.Cog):
         for h in [hat,hat2]:
             if sprites.hat.is_frame(h+"_1"): # Behind hair part of hat (only used for horns)
                 im2 = await sprites.hat.load_frame(h+"_1", colour=hat_col)
-                put_rotate_resize(im2, hat_x, hat_y, head_ang, resize=(im2.width // 6, im2.height // 6))
+                put_resize(im2, hat_x+7, hat_y+4, resize=(im2.width // 6 * hat_scale, im2.height // 6 * hat_scale))
 
         # -- Hair -- #
         if all([h in hairHats for h in [hat,hat2]]): # Neither hat doesn't show hair
             if not sprites.hair.is_frame(hair):
                 raise errors.HairNotFound(hair)
             im2 = await sprites.hair.load_frame(hair, colour=body_col)
-            put_rotate_resize(im2, hat_x, hat_y, head_ang, resize=(im2.width // 6, im2.height // 6))
+            put_resize(im2, hair_x, hair_y, resize=(im2.width // 6, im2.height // 6))
 
         for h in [hat, hat2]:
             if h == "None" or h in extraHats:
@@ -191,11 +186,11 @@ class HareCog(commands.Cog):
                 im2 = await sprites.hat.load_frame(h, colour=hat_col)
             else:
                 im2 = await colour_image(custom_hat, hat_col)
-            put_rotate_resize(im2, hat_x, hat_y, head_ang, resize=(im2.width // 6, im2.height // 6))
+            put_resize(im2, hat_x, hat_y, resize=(im2.width // 6 * hat_scale, im2.height // 6 * hat_scale))
 
         if sprites.body2.is_frame(clothes+"_2"):
             im2 = await sprites.body2.load_frame(clothes+"_2", colour=clothes_col)
-            put_rotate_resize(im2, body_x, body_y, body_ang, resize=(im2.width // 5, im2.height // 5))
+            put_resize(im2, body_x, body_y, resize=(im2.width // 4, im2.height // 4))
 
         imnp = numpy.array(im)
         imnp = numpy.where(imnp[:, :, 3] > 0) # Non transparent pixels
@@ -252,7 +247,7 @@ class HareCog(commands.Cog):
 
         def del_temp():
             pass
-        im, crop = await self.make_hare_image(expression, clothes, hat, hair, hat2, 0, body_col, clothes_col, hat_col, custom_clothes, custom_hat)
+        im, crop = await self.make_hare_image(expression, clothes, hat, hair, hat2, body_col, clothes_col, hat_col, custom_clothes, custom_hat)
         im = im.crop(crop)
         imbyte = BytesIO()
         im.save(imbyte, "PNG")

@@ -44,8 +44,8 @@ class Chicorobot(commands.Bot):
         await bot.load_extension("cogs.utils")
         await bot.load_extension("cogs.sprite")
         await bot.load_extension("cogs.dog")
-        await bot.load_extension("cogs.save")
         await bot.load_extension("cogs.hare")
+        await bot.load_extension("cogs.save")
 
         if len(sys.argv) > 1 and "test" in sys.argv: # just for me to test easily :D
             self.guild = discord.Object(473976215301128193) # msmg
