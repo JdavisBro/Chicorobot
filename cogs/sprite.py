@@ -427,9 +427,9 @@ async def create_sprite(
         if isinstance(frames[0], tuple):
             frames[0] = frames[0][0]
         out = f"{name} frame `{frames[0]}`:{data}\n"
+        if animation_seq:
+            out += f"Animation: `{anims[0]}`\n"
         if wasanimated:
-            if animation_seq:
-                out += f"Animation Seq: `{anims[0]}`\n"
             out += f"(Single frame {'sprite' if not animation_seq else 'anim'}, animation not required)"
         file = discord.File(imbyte, f"{name}.png")
         return out, file, msg, None
