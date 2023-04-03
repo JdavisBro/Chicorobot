@@ -170,12 +170,14 @@ class SpriteInputModal(discord.ui.Modal, title="Input!"):
             self.data["output_zip"] = self.output_zip.value.lower().strip() == "true" # Default to false on anything else
             self.data["crop_transparency"] = self.crop_transparency.value.lower().strip() != "false" # Default to true on anything else
         out, file, msg, temp = await create_sprite(interaction, **self.data)
+        att = [file] if file else []
         if interaction.user.id == self.original_user: # original user
             await msg.delete()
-            await self.message.edit(content=out, attachments=[file], view=SpriteModificationView(animated=(temp is not None)))
+            await self.message.edit(content=out, attachments=att, view=SpriteModificationView(animated=(temp is not None)))
         else:
-            await msg.edit(content=out, attachments=[file], view=SpriteModificationView(animated=(temp is not None)))
-        file.close()
+            await msg.edit(content=out, attachments=att, view=SpriteModificationView(animated=(temp is not None)))
+        if file:
+            file.close()
         del_temp(temp)
 
 class SpriteModificationView(discord.ui.View):
@@ -198,12 +200,14 @@ class SpriteModificationView(discord.ui.View):
         data["animated"] = not data["animated"]
         data["output_zip"] = False
         out, file, msg, temp = await create_sprite(interaction, **data)
+        att = [file] if file else []
         if interaction.user.id == user: # original user
             await msg.delete()
             await interaction.message.edit(content=out, attachments=[file], view=SpriteModificationView(animated=(temp is not None)))
         else:
             await msg.edit(content=out, attachments=[file], view=SpriteModificationView(animated=(temp is not None)))
-        file.close()
+        if file:
+            file.close()
         del_temp(temp)
 
     @discord.ui.button(label="Change Frame", emoji="🎞️", custom_id="spritemod:set_frame")
@@ -277,6 +281,7 @@ async def create_sprite(
         frames = sprite.layer.get_frames()
     else:
         frames = []
+        order = []
         delays = []
         disallowed_anims = [] # For animations with more than 100 frames I disallow using them multiple times
         anims = [i for i in animation_seq.split(";")]
@@ -310,10 +315,14 @@ async def create_sprite(
                 else:
                     delays.append(1)
                 if add_anim:
-                    frames.append((frame, anim))
+                    if frame not in frames or output_zip:
+                        frames.append((frame, anim))
+                    order.append(frame)
                     add_anim = False
                 else:
-                    frames.append(frame)
+                    if frame not in frames or output_zip:
+                        frames.append(frame)
+                    order.append(frame)
 
     wasanimated = False
     if len(frames) == 1 and animated:
@@ -395,7 +404,10 @@ async def create_sprite(
             except ValueError:
                 pass # Blank Image
         if animated:
-            im.save(temp / f"{frameN:03}.png")
+            if anims and not output_zip: # Animation sequence, the same image could happen multiple times, so we save it once and put it in the right order later.:
+                im.save(temp / f"{frame:03}.png")
+            else:
+                im.save(temp / f"{frameN:03}.png")
             frameN += 1
         else:
             if crop_transparency and crop:
@@ -447,12 +459,13 @@ async def create_sprite(
             else:
                 delay_fps = ""
                 im_list = ""
-                for i, path in enumerate(sorted(temp.glob("*.png"), key=lambda x: x.name)):
+                for i, v in enumerate(order):
+                    path = temp / f"{v:03}.png"
                     d = delays[i]
                     if d == 1:
-                        d = f"{animation_speed}x60"
+                        d = f"{animation_speed}x60" # hold being 1 means 1 frame
                     else:
-                        d = d * 7.5 / 60 * 100 / animation_speed # centi seconds for some reason
+                        d = d * 7.5 / 60 * 100 / animation_speed # hold * 7.5 is how many frames it should hold (also imagemagick uses centi seconds for some reason)
                     im_list += f"-delay {d} {path} "
         process = await asyncio.create_subprocess_shell(
             f"{imagemagick} -loop 0 -dispose Background {delay_fps}{im_list}{addcrop} {temp / 'out.gif'}",
@@ -462,6 +475,8 @@ async def create_sprite(
         stdout, stderr = await process.communicate()
         if process.returncode != 0: # Error
             print(f"GIF CONVERSION ERROR: {stderr.decode()}")
+            if anims: # Since all frames aren't done in anim seqs sending a zip right now would make it not be in the order they requested.
+                return f"{data}GIF Conversion Failed. Set Output Zip in Other Options to true to send a zip with PNGs.", None, msg, temp
             output_zip = True
             giferror = True
         else:
@@ -518,8 +533,10 @@ class SpriteCog(commands.Cog):
             crop_transparency, use_frame, output_zip,
             colour_1, colour_2, colour_3
         )
-        await msg.edit(content=out, attachments=[file], view=SpriteModificationView(animated=(temp is not None))) # idk if i wanna add create_sprite returning if it is animated (it can change with 1 frame sprites) but there being a temp is a 100% way to know
-        file.close()
+        att = [file] if file else []
+        await msg.edit(content=out, attachments=att, view=SpriteModificationView(animated=(temp is not None))) # idk if i wanna add create_sprite returning if it is animated (it can change with 1 frame sprites) but there being a temp is a 100% way to know
+        if file:
+            file.close()
         del_temp(temp)
 
     @app_commands.command(description="Make a animation_seq to copy into the /sprite command, for mobile users mostly.")
