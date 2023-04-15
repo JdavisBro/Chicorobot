@@ -381,14 +381,15 @@ async def create_sprite(
                 layer = sprite[i]
             if frame in layer.get_frames():
                 sproot = layer.root
+                layerframe = frame
                 if layer.offset:
-                    frame -= layer.offset
+                    layerframe -= layer.offset
                 col = colour_2 if i == "2" else colour_3
-                im2 = await layer.load_frame(frame, anim=anim, colour=col)
+                im2 = await layer.load_frame(layerframe, anim=anim, colour=col)
                 im2n = numpy.array(im2)
                 im2n = numpy.where(im2n[:, :, 3] > 0)
                 if (im2n[0].size == 0 and im2n[1].size == 0) and anim != None: # Image fully transparent and there is an animation
-                    im2 = await layer.load_frame(frame, colour=col) # use regular image instead of one from anim
+                    im2 = await layer.load_frame(layerframe, colour=col) # use regular image instead of one from anim
                 im.alpha_composite(im2)
         if crop_transparency:
             imnp = numpy.array(im)
