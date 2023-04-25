@@ -431,7 +431,7 @@ async def create_sprite(
     data = json.dumps(data, separators=(",",":")) # This is probably not very efficient but is cool reference
     data = zlib.compress(data.encode("utf-8"))
     data = b64encode(data).decode("utf-8")
-    data = f"[ ](http://${data}$)"
+    data = f"[ ](http://a/${data}$)"
 
     if not animated:
         imbyte = BytesIO()
