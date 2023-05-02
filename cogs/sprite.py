@@ -439,7 +439,7 @@ async def create_sprite(
         imbyte.seek(0)
         if isinstance(frames[0], tuple):
             frames[0] = frames[0][0]
-        out = f"{name} frame `{frames[0]}`:{data}\n"
+        out = f"`{name}` frame `{frames[0]}`:{data}\n"
         if animation_seq:
             out += f"Animation: `{anims[0]}`\n"
         if wasanimated:
@@ -482,10 +482,10 @@ async def create_sprite(
             giferror = True
         else:
             if anims:
-                out = f"{name}:{data}\n"
+                out = f"`{name}`:{data}\n"
                 out += f"Animation Seq: `{'`, `'.join(anims)}`"
             else:
-                out = f"{name} at {animation_fps} fps:{data}\n"
+                out = f"`{name}` at {animation_fps} fps:{data}\n"
             file = discord.File(temp / "out.gif", f"{name}.gif")
             return out, file, msg, temp
 
@@ -497,7 +497,7 @@ async def create_sprite(
                 zipf.write(i, i.relative_to(temp))
         f.seek(0)
         file = discord.File(f, f"{name}.zip")
-        out = f"{name}:{data}"
+        out = f"`{name}`:{data}"
         return out, file, msg, temp
 
 class SpriteCog(commands.Cog):
