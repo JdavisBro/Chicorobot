@@ -283,6 +283,8 @@ async def create_sprite(
         frames = []
         order = []
         delays = []
+        if sprite.layer.speed != 1:
+            animation_speed *= sprite.layer.speed
         disallowed_anims = [] # For animations with more than 100 frames I disallow using them multiple times
         anims = [i for i in animation_seq.split(";")]
         if len(anims) > 10:
@@ -455,19 +457,20 @@ async def create_sprite(
         im_list = f"{temp}/*.png "
         delay_fps = f"-delay 1x{animation_fps} "
         if delays:
-            if sum(delays) == len(delays): # all 1s
-                delay_fps = f"-delay {animation_speed}x60 "
-            else:
-                delay_fps = ""
-                im_list = ""
-                for i, v in enumerate(order):
-                    path = temp / f"{v:03}.png"
-                    d = delays[i]
-                    if d == 1:
-                        d = f"{animation_speed}x60" # hold being 1 means 1 frame
-                    else:
-                        d = d * 7.5 / 60 * 100 / animation_speed # hold * 7.5 is how many frames it should hold (also imagemagick uses centi seconds for some reason)
-                    im_list += f"-delay {d} {path} "
+            # if sum(delays) == len(delays): # all 1s
+            #     delay_fps = f"-delay {animation_speed}x60 "
+            # else:
+            delay_fps = ""
+            im_list = ""
+            for i, v in enumerate(order):
+                path = temp / f"{v:03}.png"
+                d = delays[i]
+                # if d == 1:
+                #     d = f"{animation_speed}x60" # hold being 1 means 1 frame THIS IS WRONG?
+                # else:
+                d = round(d * 7.5 / 60 * 100 / animation_speed) # hold * 7.5 is how many frames it should hold (also imagemagick uses centi seconds for some reason)
+                im_list += f"-delay {d} {path} "
+        print(f"{imagemagick} -loop 0 -dispose Background {delay_fps}{im_list}{addcrop} {temp / 'out.gif'}")
         process = await asyncio.create_subprocess_shell(
             f"{imagemagick} -loop 0 -dispose Background {delay_fps}{im_list}{addcrop} {temp / 'out.gif'}",
             stdout=asyncio.subprocess.PIPE,

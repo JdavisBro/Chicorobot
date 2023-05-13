@@ -329,6 +329,33 @@ def add_sprite(path):
             if "anim_root" in spritesDict[sprite][layer]:
                 spritesDict[spr][layer]["anim_root"] = spritesDict[sprite][layer]["anim_root"]
     
+    spriteSpeeds = {
+        "Blackberry" : 1.25,
+        "Boss3": 1.5,
+        "Boss6": 1.25,
+        "BossStealTransform": 1.5, # CHECK
+        "Turnip": 1.25, # objCaveblocker
+        "Chicory_lagoon": 0.75,
+        "Chicory_partner": 2,
+        "Chicory_curl": 0.5, # Except Turn Animation
+        "Feastbug_fly1": 2,
+        "Fattk_curve": 2,
+        "Fattk_leafa": 1.5,
+        "Fattk_leafb": 1.5,
+        "Fattk_line": 2,
+        # sprFinalboss_finalform_roots: FinalPaintPiece Step 2 <-- do this? later?
+        "Lost_kitten": 1.5,
+        "Finjilogo": 3,
+        "Hermitcrab": 1.5,
+        "Letterbugs": 1.5,
+        "Oats": 1, # ( ( 12 / (beatFrames() * 2) ) * 7.5 ) fuck you # <-- do this? later?
+        "Endpetal": 1.1,
+        "Rice": 1.25
+    }
+
+    if sprite in spriteSpeeds.keys():
+        spritesDict[sprite][1]["speed"] = spriteSpeeds[sprite]
+
     if sprite == "Logo" and layer == 2 and not layer_anim:
         if not "anim_root" in spritesDict[sprite][layer]:
             spritesDict[sprite][layer]["anim_root"] = {}

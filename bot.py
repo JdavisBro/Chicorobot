@@ -87,8 +87,6 @@ async def command_error(interaction: discord.Interaction, error):
         await send("You inputted a colour wrong!", ephemeral=ephemeral)
     elif isinstance(error, errors.SpriteNotFound):
         await send(f"Sprite `{error.sprite}` could not be found.", ephemeral=ephemeral)
-    elif isinstance(error, errors.LayerNotFound):
-        await send(f"Layer `{error.layer}` could not be found.", ephemeral=ephemeral)
     elif isinstance(error, errors.FrameNotFound):
         await send(f"Frame `{error.frame}` could not be found.", ephemeral=ephemeral)
     elif isinstance(error, errors.AnimationNotFound):

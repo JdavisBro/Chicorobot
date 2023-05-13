@@ -93,6 +93,10 @@ class Layer():
             self.offset = data["offset"]
         else:
             self.offset = None
+        if "speed" in data:
+            self.speed = data["speed"]
+        else:
+            self.speed = 1
 
     def __lt__(self, other):
         if isinstance(other, Layer):
