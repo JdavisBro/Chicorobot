@@ -4,6 +4,7 @@ import traceback
 from contextlib import redirect_stdout
 from io import BytesIO, StringIO
 
+import numpy
 import discord
 from discord import app_commands
 from discord.ext import commands
@@ -163,6 +164,110 @@ class Utils(commands.Cog):
     @app_commands.command(description="Send a picture of hair to name.")
     async def hair(self, interaction: discord.Interaction):
         await interaction.response.send_message(content="https://media.discordapp.net/attachments/967965561361428490/1004109210151301120/unknown.png", ephemeral=True)
+
+    @app_commands.command(description="Identifies Chicory palette colors from an image.")
+    @app_commands.describe(image="The Image to get the colors from.", eyestrain_mode="The eyestrain mode used in Chicory. Use 'detect' to try to detect it.", color_threshold="Amount of the image the color has to take up to be considered. (min 0.1)")
+    @app_commands.choices(eyestrain_mode=[
+        app_commands.Choice(name="None", value=0),
+        app_commands.Choice(name="Default", value=1),
+        app_commands.Choice(name="Lots", value=2),
+        app_commands.Choice(name="Detect", value=3)
+    ])
+    async def identify_colors(self, interaction: discord.Interaction, image: discord.Attachment, eyestrain_mode: app_commands.Choice[int]=3, color_threshold: float=1.0):
+        await interaction.response.defer(thinking=True)
+
+        color_threshold = min(0.1, max(10, color_threshold))
+        percent_threshold = color_threshold*0.5
+
+        if isinstance(eyestrain_mode, app_commands.Choice):
+            eyestrain_mode = eyestrain_mode.value
+        
+        im = BytesIO()
+        await image.save(im)
+        im = Image.open(im)
+        im = im.convert("RGB")
+
+        pixel_threshold = (im.width * im.height) * (percent_threshold / 100)
+
+        im_np = numpy.array(im)
+
+        auto_fail = False
+
+        if eyestrain_mode == 3:
+            if (numpy.all(im_np == (255, 245, 237), axis=-1)).any():
+                eyestrain_mode = 1 # Default eyestrain white in image
+            elif (numpy.all(im_np == (255, 255, 255), axis=-1)).any():
+                eyestrain_mode = 0 # White in image, no eyestrain mode (this is second because it's detecting white in default images even though THERE ISN'T ANY IM GOING INSANE)
+            elif (numpy.all(im_np == (240, 197, 150), axis=-1)).any():
+                eyestrain_mode = 2 # Lots eyestrain white in image
+            else:
+                eyestrain_mode = 0
+                auto_fail = True
+
+        if eyestrain_mode > 0:
+            im_np = numpy.float64(im_np)
+            if eyestrain_mode == 1:
+                r_mult = 1
+                g_mult = 0.941
+                b_mult = 0.847
+                im_np[:, :, 1] -= 0.02 * 255 # g
+                im_np[:, :, 2] -= 0.082 * 255 # b
+            elif eyestrain_mode == 2:
+                r_mult = 0.941
+                g_mult = 0.772
+                b_mult = 0.588
+            im_np[:, :, 0] /= r_mult
+            im_np[:, :, 1] /= g_mult
+            im_np[:, :, 2] /= b_mult
+            im_np = numpy.rint(im_np)
+            im_np = numpy.clip(im_np, 0, 255)
+            im_np = numpy.uint8(im_np)
+        im_np_flat = numpy.reshape(im_np, (-1, im_np.shape[2]))
+        _, indexes, counts = numpy.unique(im_np_flat, axis=0, return_index=True, return_counts=True)
+        cols = numpy.extract(counts > pixel_threshold, indexes)
+        cols = numpy.take(im_np_flat, cols, axis=0)
+        chicory_cols = {}
+        for col in cols:
+            col = col.tolist()
+            for palette in palettes.keys():
+                for pcol in palettes[palette]:
+                    match = True
+                    for i in range(3):
+                        if not (col[i] - 1 <= pcol[i] and col[i] + 1 >= pcol[i]): # Range of 1 around each color rgb because of rounding when undoing shader 
+                            match = False
+                            break
+                    if match:
+                        if palette not in chicory_cols:
+                            chicory_cols[palette] = []
+                        if tuple(pcol) not in chicory_cols[palette]:
+                            chicory_cols[palette].append(tuple(pcol))
+        palette_names = {v: k for k, v in paletteAliases.items()}
+        if chicory_cols:
+            out = "Detected Colors:\n"
+            for palette in chicory_cols:
+                pcols = '`, `'.join(['#%02x%02x%02x' % c for c in chicory_cols[palette]])
+                if palette in palette_names:
+                    name = palette_names[palette]
+                else:
+                    name = to_titlecase(palette)
+                out += f"{name} - `{pcols}`\n"
+            width = 63
+            outim = Image.new("RGBA", (width*4, 20*len(chicory_cols.keys())), (255,255,255, 0))
+            h = 0
+            for pcols in chicory_cols.values():
+                for i, pcol in enumerate(pcols):
+                    cim = Image.new("RGBA", (width, 20), tuple([i for i in pcol] + [255]))
+                    outim.paste(cim, box=(width*i, 20*h))
+                h += 1
+            outb = BytesIO()
+            outim.save(outb, format="PNG")
+            outb.seek(0)
+            file = discord.File(outb, filename="colors.png")
+            await interaction.followup.send(out, file=file)
+        else:
+            eyestrain_types = ["None", "Default", "Lots"]
+            await interaction.followup.send(f"No Chicory colors detected. If this is wrong try one or more of the following:\n- Using an eyestrain mode other than `{eyestrain_types[eyestrain_mode] if not auto_fail else f'Detect/{eyestrain_types[eyestrain_mode]}'}`\n- Using a lower color_threshold\n- Crop the image more.")
+
 
     # Owner Only
 
