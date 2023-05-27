@@ -106,6 +106,11 @@ class Layer():
     def get_frames(self):
         return self.frames or [i for i in self.named_frames]
     
+    def is_anim(self, anim):
+        if self.anim_root and anim:
+            return anim in self.anim_root
+        return False
+
     def is_frame(self, frame):
         if self.frames:
             try:
