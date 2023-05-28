@@ -263,10 +263,15 @@ class Utils(commands.Cog):
             outim.save(outb, format="PNG")
             outb.seek(0)
             file = discord.File(outb, filename="colors.png")
-            await interaction.followup.send(out, file=file)
+            outb2 = BytesIO()
+            Image.fromarray(im_np).save(outb2, format="PNG")
+            outb2.seek(0)
+            file2 = discord.File(outb2, filename="image.png")
+            embeds = [discord.Embed().set_image(url="attachment://colors.png"), discord.Embed().set_image(url="attachment://image.png")]
+            await interaction.followup.send(out, files=[file, file2], embeds=embeds)
         else:
             eyestrain_types = ["None", "Default", "Lots"]
-            await interaction.followup.send(f"No Chicory colors detected. If this is wrong try one or more of the following:\n- Using an eyestrain mode other than `{eyestrain_types[eyestrain_mode] if not auto_fail else f'Detect/{eyestrain_types[eyestrain_mode]}'}`\n- Using a lower color_threshold\n- Crop the image more.")
+            await interaction.followup.send(f"No Chicory colors detected. If this is wrong try one or more of the following:\n- Using an eyestrain mode other than `{eyestrain_types[eyestrain_mode] if not auto_fail else f'Detect/{eyestrain_types[eyestrain_mode]}'}`\n- Using a lower color_threshold\n- Crop the image more.\nSometimes it can't detect colors if:\n- The picture is taken in a dark area\n- The paint is on a non climbable wall or on water.")
 
 
     # Owner Only
