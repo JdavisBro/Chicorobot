@@ -135,7 +135,7 @@ class Layer():
             if frame >= len(self.frames):
                 raise errors.FrameNotFound(frame)
 
-            if root == "sprLogo_alt_":
+            if root == "sprLogo_alt_" and frame >= 15:
                 frame = 15 + (((frame - 19) % 4)//2) # Alternate 15 to 18
             
             return root + str(frame)
