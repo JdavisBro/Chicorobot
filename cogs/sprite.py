@@ -367,7 +367,10 @@ async def create_sprite(
             if f >= len(frames):
                 await msg.edit(content="Invalid frame. Use `/frames` to check available frames!")
                 raise errors.InvalidFrame()
-            frames = [f]
+            if not anims:
+                frames = [f]
+            else:
+                frames = [(f, anims[0])]
 
     crop = None
     anim = None

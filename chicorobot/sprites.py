@@ -153,10 +153,15 @@ class Layer():
         if path.exists():
             im = Image.open(path)
         else:
-            try: # Chicory_lagoon_layer4_smile_9.png does not exist.
-                im = Image.open(self.get_frame_path(int(frame) - 1, anim))
-            except (FileNotFoundError, ValueError):
-                return Image.open(self.get_frame_path(frame))
+            impath = self.get_frame_path(int(frame) - 1, anim)
+            if not impath.exists():
+                impath = self.get_frame_path(frame)
+                if not impath.exists():
+                    if self.anim_root:
+                        impath = self.get_frame_path(frame, list(self.anim_root.keys())[0])
+                    if not impath.exists():
+                        raise errors.FrameNotFound(frame)
+            im = Image.open(impath)
         # Resize
         if resize:
             im = im.resize(resize)
