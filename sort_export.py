@@ -260,6 +260,10 @@ def add_sprite(path):
 
     frame = int(name[-1])
 
+    if sprite == "Logo":
+        if layer_anim in ["jp", "kr", "sch", "tch"]:
+            sprite = "Logo_alt"
+
     if sprite == "Chicoryportrait":
         sprite = "Chicoryportrait_" + str(layer)
         layer = 1
@@ -277,7 +281,10 @@ def add_sprite(path):
     if layer not in spritesDict[sprite]:
         spritesDict[sprite][layer] = {}
         if layer != 1 and not sprite.startswith("Chicoryportrait"):
-            spritesDict[sprite][layer]["root"] = f"spr{sprite}_{'layer' if layer_text else ''}{layer}_"
+            if sprite == "Logo_alt":
+                spritesDict[sprite][layer]["root"] = f"sprLogo_{'layer' if layer_text else ''}{layer}_"
+            else:
+                spritesDict[sprite][layer]["root"] = f"spr{sprite}_{'layer' if layer_text else ''}{layer}_"
         else:
             spritesDict[sprite][layer]["root"] = f"spr{sprite}_"
         if sprite in ["Dog_body", "Dog_body2", "Dog_hat", "Dog_hair", "Dog_expression"]:
@@ -303,6 +310,8 @@ def add_sprite(path):
     else: 
         if frame not in spritesDict[sprite][layer]["frames"]:
             spritesDict[sprite][layer]["frames"].append(frame)
+        if sprite == "Logo_alt" and frame == 18:
+            spritesDict[sprite][layer]["frames"] += [19, 20, 21, 22, 23]
 
     if layer_anim:
         if "anim_root" not in spritesDict[sprite][layer]:

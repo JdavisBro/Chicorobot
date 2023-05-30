@@ -390,7 +390,7 @@ async def create_sprite(
                 im2 = await layer.load_frame(layerframe, anim=anim, colour=col)
                 im2n = numpy.array(im2)
                 im2n = numpy.where(im2n[:, :, 3] > 0)
-                if (im2n[0].size == 0 and im2n[1].size == 0) and anim != None: # Image fully transparent and there is an animation
+                if (im2n[0].size == 0 and im2n[1].size == 0) and anim != None and name != "Logo_alt": # Image fully transparent and there is an animation
                     im2 = await layer.load_frame(layerframe, colour=col) # use regular image instead of one from anim
                 im.alpha_composite(im2)
         if crop_transparency:

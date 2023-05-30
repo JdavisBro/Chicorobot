@@ -5345,7 +5345,7 @@
                     "20": 1.5,
                     "21": 1,
                     "5": 22,
-                    "0": 26
+                    "0.5": 26
                 },
                 "sounds": {
                     "-1": "boss7_heroChicory_brushFlip"
@@ -5451,6 +5451,30 @@
             "frames": {
                 "start": 18,
                 "end": 18,
+                "holds": -1,
+                "sounds": -1
+            },
+            "loop": 0,
+            "bounce": 0
+        }
+    },
+    "Wisheslogo": {
+        "intro": {
+            "frames": {
+                "start": 0,
+                "end": 32,
+                "holds": -1,
+                "sounds": {
+                    "0": "wishes_logo"
+                }
+            },
+            "loop": "end",
+            "bounce": 0
+        },
+        "end": {
+            "frames": {
+                "start": 32,
+                "end": 32,
                 "holds": -1,
                 "sounds": -1
             },
