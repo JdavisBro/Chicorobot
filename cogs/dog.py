@@ -386,9 +386,9 @@ class DogCog(commands.Cog):
     @app_commands.autocomplete(use_palette=autocomplete.random_palette)
     async def random_dog(self, interaction: discord.Interaction, use_in_game_colors: bool=True, use_palette: str="None", add_hat2: bool=False, animated: bool=False, random_animation: bool=False):
         global colour_image
-        active = False
-        if random.randint(0,199) == 0:
-            active = True
+        active = True
+        # if random.randint(0,199) == 0:
+        #     active = True
         chosen = "None"
         if use_in_game_colors:
             if use_palette.lower() != "none": # Single palette limited
@@ -427,7 +427,7 @@ class DogCog(commands.Cog):
             colone,
             coltwo,
             colthree,
-            extra_text=f"\nPalette: {chosen}" + (" - Gay Mode Active, 1/200 chance." if active else ""),
+            extra_text=f"\nPalette: {chosen}" + (" - Gay Mode Active, happy gay month." if active else ""),
             view=view
         )
 

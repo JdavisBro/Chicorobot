@@ -261,9 +261,9 @@ class HareCog(commands.Cog):
     @app_commands.describe(use_in_game_colors="Only use colours from the game. Default: True", use_palette="Specify palette to be used, can be None or Random. Default: None" , add_hat2="Add a random hat2. Default: False")
     @app_commands.autocomplete(use_palette=autocomplete.random_palette)
     async def random_hare(self, interaction: discord.Interaction, use_in_game_colors: bool=True, use_palette: str="None", add_hat2: bool=False):
-        active = False
-        if random.randint(0,199) == 0:
-            active = True
+        active = True
+        # if random.randint(0,199) == 0:
+        #     active = True
         chosen = "None"
         if use_in_game_colors:
             if use_palette.lower() != "none": # Single palette limited
@@ -300,7 +300,7 @@ class HareCog(commands.Cog):
             colone,
             coltwo,
             colthree,
-            extra_text=f"\nPalette: {chosen}" + (" - Gay Mode Active, 1/200 chance." if active else ""),
+            extra_text=f"\nPalette: {chosen}" + (" - Gay Mode Active, happy gay month." if active else ""),
             view=view
         )
 
