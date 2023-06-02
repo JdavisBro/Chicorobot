@@ -264,8 +264,8 @@ def add_sprite(path):
         if layer_anim in ["jp", "kr", "sch", "tch"]:
             sprite = "Logo_alt"
 
-    if sprite == "Chicoryportrait":
-        sprite = "Chicoryportrait_" + str(layer)
+    if sprite in ["Chicoryportrait", "Castleportrait", "Finaltreearm", "Linefx", "Oozewiggle", "Queen_antennaA", "Queen_antennaB", "Townflowers", "Townpath"]:
+        sprite = sprite + "_" + str(layer)
         layer = 1
 
     if sprite == "Logo" and layer == 2:

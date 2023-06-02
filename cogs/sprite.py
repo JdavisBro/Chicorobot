@@ -407,6 +407,10 @@ async def create_sprite(
                     crop[1] = min(crop[1], imnp[0].min())
                     crop[2] = max(crop[2], imnp[1].max())
                     crop[3] = max(crop[3], imnp[0].max())
+                if crop[0] == crop[2]:
+                    crop[2] += 1
+                if crop[1] == crop[3]:
+                    crop[3] += 1
             except ValueError:
                 pass # Blank Image
         if animated:
