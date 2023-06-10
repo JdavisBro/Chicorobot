@@ -161,9 +161,14 @@ class Utils(commands.Cog):
         file = discord.File(fp, filename="palette.png")
         await interaction.response.send_message(f"{palette_text}\n`{'`, `'.join([('#%02x%02x%02x' % i) for i in colours])}`", file=file)
 
-    @app_commands.command(description="Send a picture of hair to name.")
-    async def hair(self, interaction: discord.Interaction):
-        await interaction.response.send_message(content="https://media.discordapp.net/attachments/967965561361428490/1004109210151301120/unknown.png", ephemeral=True)
+    @app_commands.command(description="Sends preview images of dog parts that aren't named in-game.")
+    async def preview_dog(self, interaction: discord.Interaction):
+        embeds = []
+        embeds.append(discord.Embed(title="Hair Preview:"))
+        embeds[-1].set_image(url="https://media.discordapp.net/attachments/967965561361428490/1004109210151301120/unknown.png")
+        embeds.append(discord.Embed(title="Expressions Preview:"))
+        embeds[-1].set_image(url="https://media.discordapp.net/attachments/1073696482827440218/1116902058491117628/image.png")
+        await interaction.response.send_message(embeds=embeds, ephemeral=True)
 
     @app_commands.command(description="Identifies Chicory palette colors from an image.")
     @app_commands.describe(image="The Image to get the colors from.", eyestrain_mode="The eyestrain mode used in Chicory. Use 'detect' to try to detect it.", color_threshold="Amount of the image the color has to take up to be considered. (min 0.1)")
@@ -372,7 +377,7 @@ class Utils(commands.Cog):
         await interaction.response.send_modal(self.ExecModal())
 
     # Sends last error
-    @app_commands.command(name="get_error", description="Shows the previous error :skull:")
+    @app_commands.command(name="get_error", description="Shows the previous error :skull:", extras={"ephemeral": True})
     @is_owner()
     async def get_last_error(self, interaction: discord.Interaction):
         if self.bot.last_error:
