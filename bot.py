@@ -4,6 +4,7 @@ import sys
 import logging
 from pathlib import Path
 
+import PIL
 import discord
 from discord import app_commands
 from discord.ext import commands
@@ -103,6 +104,8 @@ async def command_error(interaction: discord.Interaction, error):
         return
     elif isinstance(error, errors.SaveNotUploaded):
         await send("Your save data has not been uploaded yet. Use `/save upload` to do that!")
+    elif isinstance(error, PIL.UnidentifiedImageError):
+        await send("Image file not recognised! Make sure it's a PNG.")
     else:
         await send("<:Pizza_Depressaroli:967482279670718474> Something went wrong.", ephemeral=ephemeral)
         bot.last_error = error
