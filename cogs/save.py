@@ -142,6 +142,8 @@ class SaveCog(commands.Cog):
         await interaction.response.defer(thinking=True)
         screen = f"{screen_layer}_{screen_x}_{screen_y}"
         save = self.get_playdata(interaction.user)
+        if f"{screen}.paint" not in save[18]:
+            return await interaction.followup.send("Screen not painted.")
         im = await self.draw_paint(save[18][f"{screen}.paint"], self.get_palette(screen, save))
         im = im.resize((im.size[0]*8, im.size[1]*8), resample=0)
         out = BytesIO()
