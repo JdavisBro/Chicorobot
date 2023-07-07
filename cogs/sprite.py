@@ -52,63 +52,61 @@ async def get_data(msg):
     return data
 
 class RetryModalView(discord.ui.View):
-    def __init__(self, modal):
+    def __init__(self, modal, err_msg: list):
         super().__init__()
-        self.modal = modal
+        self.input_type = modal.input_type
+        self.data = modal.data
+        self.data["user"] = modal.original_user
+        self.message = modal.message
+        self.err_msg = err_msg
     
     @discord.ui.button(label="Re-enter", emoji="🔁")
     async def reenter(self, interaction, button):
-        for i in self.modal.children:
-            i.default = i.value
-        await interaction.response.send_modal(self.modal)
-        await (await interaction.original_response()).delete()
+        await interaction.response.send_modal(SpriteInputModal(self.input_type, self.data, self.message, self.err_msg))
 
 class SpriteInputModal(discord.ui.Modal, title="Input!"):
-    def __init__(self, input_type: int, data: dict, message: discord.Message):
+    def __init__(self, input_type: int, data: dict, message: discord.Message, err_msg: list=[None,None,None,None]):
         super().__init__()
         self.message = message
         self.input_type = input_type
         self.data = data
         self.original_user = self.data.pop("user")
+        def add_error(label, error):
+            if error:
+                return label + " - " + error
+            return label
         if input_type == 0: # set_frame
             frames = sprites[data["sprite"]].layer.get_frames()
             minn, maxn = 0, 0
             if isinstance(frames[0], int):
                 minn, maxn = min(frames), max(frames)
             self.frame_range = [minn, maxn]
-            self.frame = discord.ui.TextInput(label=f"Frame Number ({minn} to {maxn})", default=data["use_frame"])
+            self.frame = discord.ui.TextInput(label=add_error(f"Frame Number ({minn} to {maxn})", err_msg[0]), default=data["use_frame"])
             self.add_item(self.frame)
         elif input_type == 1: # set_colours
-            self.colour_1 = discord.ui.TextInput(label="Colour 1", default=data["colour_1"])
-            self.colour_2 = discord.ui.TextInput(label="Colour 2", default=data["colour_2"])
-            self.colour_3 = discord.ui.TextInput(label="Colour 3", default=data["colour_3"])
+            self.colour_1 = discord.ui.TextInput(label=add_error("Colour 1", err_msg[0]), default=data["colour_1"])
+            self.colour_2 = discord.ui.TextInput(label=add_error("Colour 2", err_msg[1]), default=data["colour_2"])
+            self.colour_3 = discord.ui.TextInput(label=add_error("Colour 3", err_msg[2]), default=data["colour_3"])
             [self.add_item(i) for i in [self.colour_1, self.colour_2, self.colour_3]]
         elif input_type == 2:
-            self.animation_seq = discord.ui.TextInput(label="Animation Sequence (or `none`)", default=str(data["animation_seq"]))
-            self.animation_speed = discord.ui.TextInput(label="Animation Speed", default=str(data["animation_speed"]))
+            self.animation_seq = discord.ui.TextInput(label=add_error("Animation Sequence (or `none`)", err_msg[0]), default=str(data["animation_seq"]))
+            self.animation_speed = discord.ui.TextInput(label=add_error("Animation Speed", err_msg[1]), default=str(data["animation_speed"]))
             [self.add_item(i) for i in [self.animation_seq, self.animation_speed]]
         elif input_type == 3: # other_options
-            self.animation_fps = discord.ui.TextInput(label="Animation FPS", default=data["animation_fps"])
+            self.animation_fps = discord.ui.TextInput(label=add_error("Animation FPS", err_msg[0]), default=data["animation_fps"])
             self.output_zip = discord.ui.TextInput(label="Output ZIP (`true` or `false`)", default=str(data["output_zip"]))
             self.crop_transparency = discord.ui.TextInput(label="Crop Transparency (`true` or `false`)", default=str(data["crop_transparency"]))
             [self.add_item(i) for i in [self.animation_fps, self.output_zip, self.crop_transparency]]
 
     async def on_submit(self, interaction):
         if self.input_type == 0: # set_frame
+            err_msg = [None]
             self.data["animated"] = False
             self.data["output_zip"] = False
             async def invalid_number(not_range=False): 
-                if self.frame.label.endswith("Invalid Number"):
-                    if not_range:
-                        self.frame.label = self.frame.label.replace("Invalid Number", "Out of Range")
-                elif self.frame.label.endswith("Out of Range"):
-                    if not not_range:
-                        self.frame.label = self.frame.label.replace("Out of Range", "Invalid Number")
-                elif not_range:
-                    self.frame.label += " - Out of Range"
-                else:
-                    self.frame.label += " - Invalid Number"
-                await interaction.response.send_message("Out of Range" if not_range else "Invalid Number", ephemeral=True, view=RetryModalView(self))
+                err_msg[0] = "Out of Range" if not_range else "Invalid Number"
+                self.data["use_frame"] = self.frame.value
+                await interaction.response.send_message(err_msg[0], ephemeral=True, view=RetryModalView(self, err_msg))
             try:
                 f = int(self.frame.value)
             except ValueError:
@@ -117,6 +115,7 @@ class SpriteInputModal(discord.ui.Modal, title="Input!"):
                 return await invalid_number(True)
             self.data["use_frame"] = f
         elif self.input_type == 1: # set_colours
+            err_msg = [None, None, None]
             hex_fail = False
             for i, item in enumerate(self.children):
                 v = item.value.lstrip("#")
@@ -128,45 +127,49 @@ class SpriteInputModal(discord.ui.Modal, title="Input!"):
                 except ValueError:
                     v = "epic hex fail"
                 if len(v) != 6: # epic hex falure
-                    if not item.label.endswith("Hex"):
-                        item.label = item.label + " - Invalid Hex"
+                    err_msg[i] = "Invalid Hex"
+                    self.data[f"colour_{i+1}"] = item.value
                     hex_fail = True
                 else: # epic hex success
-                    if item.label.endswith("Hex"):
-                        item.label = item.label.replace(" - Invalid Hex", "") # In case the user had an epic hex fail previously and has another, separate one
                     self.data[f"colour_{i+1}"] = item.value
             if hex_fail:
-                return await interaction.response.send_message("Invalid Hex", ephemeral=True, view=RetryModalView(self))
+                return await interaction.response.send_message("Invalid Hex", ephemeral=True, view=RetryModalView(self, err_msg))
         elif self.input_type == 2:
             if self.animation_seq.value.lower() == "none":
                 self.data["animation_seq"] = None
             else:
+                err_msg = [None, None]
                 seq = self.animation_seq.value.split(";")
                 if self.data["sprite"] in prop_animations:
                     invalid_anims = [i for i in seq if i not in prop_animations[self.data["sprite"]] and i]
                 else:
                     invalid_anims = []
                 if len(seq) >= 10:
-                    self.animation_seq.label = "Animation Sequence - Too Many (10 max)"
-                    return await interaction.response.send_message(f"Too Many Animations (10 max)", ephemeral=True, view=RetryModalView(self))
+                    err_msg[0] = "10 Max"
+                    self.data["animation_seq"] = self.animation_seq.value
+                    self.data["animation_speed"] = self.animation_speed.value
+                    return await interaction.response.send_message(f"Too Many Animations (10 max)", ephemeral=True, view=RetryModalView(self, err_msg))
                 elif invalid_anims:
-                    self.animation_seq.label = "Animation Sequence - Invalid Animation"
-                    self.animation_speed.label = "Animation Speed" # in case it is invalid number
-                    return await interaction.response.send_message(f"Invalid Animation{'s' if (len(invalid_anims) > 1) else ''}: `{'`, `'.join(invalid_anims)}`", ephemeral=True, view=RetryModalView(self))
+                    err_msg[0] = "Invalid"
+                    self.data["animation_seq"] = self.animation_seq.value
+                    self.data["animation_speed"] = self.animation_speed.value
+                    return await interaction.response.send_message(f"Invalid Animation{'s' if (len(invalid_anims) > 1) else ''}: `{'`, `'.join(invalid_anims)}`", ephemeral=True, view=RetryModalView(self, err_msg))
                 else:
                     self.data["animation_seq"] = self.animation_seq.value
-                    self.animation_seq.label = "Animation Sequence" # incaise it is invalid animation / too many
             try:
                 self.data["animation_speed"] = int(self.animation_speed.value)
             except ValueError:
-                self.animation_speed.label = "Animation Speed - Invalid Number"
-                return await interaction.response.send_message("Invalid Number", ephemeral=True, view=RetryModalView(self))
+                err_msg[1] = "Invalid Number"
+                self.data["animation_speed"] = self.animation_speed.value
+                return await interaction.response.send_message("Invalid Number", ephemeral=True, view=RetryModalView(self, err_msg))
         elif self.input_type == 3:
+            err_msg = [None]
             try:
                 self.data["animation_fps"] = int(self.animation_fps.value)
             except ValueError:
-                self.animation_fps.label = "Animation FPS - Invalid Number"
-                return await interaction.response.send_message("Invalid Number", ephemeral=True, view=RetryModalView(self))
+                err_msg[0] = "Invalid Number"
+                self.data["animation_fps"] = self.animation_fps.value
+                return await interaction.response.send_message("Invalid Number", ephemeral=True, view=RetryModalView(self, err_msg))
             self.data["output_zip"] = self.output_zip.value.lower().strip() == "true" # Default to false on anything else
             self.data["crop_transparency"] = self.crop_transparency.value.lower().strip() != "false" # Default to true on anything else
         out, file, msg, temp = await create_sprite(interaction, **self.data)
