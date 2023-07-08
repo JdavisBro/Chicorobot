@@ -157,7 +157,7 @@ class SpriteInputModal(discord.ui.Modal, title="Input!"):
                 else:
                     self.data["animation_seq"] = self.animation_seq.value
             try:
-                self.data["animation_speed"] = int(self.animation_speed.value)
+                self.data["animation_speed"] = float(self.animation_speed.value)
             except ValueError:
                 err_msg[1] = "Invalid Number"
                 self.data["animation_speed"] = self.animation_speed.value
