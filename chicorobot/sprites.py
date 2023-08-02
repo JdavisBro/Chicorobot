@@ -45,12 +45,12 @@ async def colour_image(im, colour):
 class Sprites():
     def __init__(self, spriteDict):
         self._dict = spriteDict
-        self.body2 = Layer(self._dict["Dog_body2"]["1"])
-        self.body = Layer(self._dict["Dog_body"]["1"])
-        self.hat = Layer(self._dict["Dog_hat"]["1"])
-        self.hair = Layer(self._dict["Dog_hair"]["1"])
-        self.expression = Layer(self._dict["Dog_expression"]["1"])
-        self.head = Layer(self._dict["Dog_head"]["1"])
+        self.body2 = Layer(1, self._dict["Dog_body2"]["1"])
+        self.body = Layer(1, self._dict["Dog_body"]["1"])
+        self.hat = Layer(1, self._dict["Dog_hat"]["1"])
+        self.hair = Layer(1, self._dict["Dog_hair"]["1"])
+        self.expression = Layer(1, self._dict["Dog_expression"]["1"])
+        self.head = Layer(1, self._dict["Dog_head"]["1"])
 
     def __getitem__(self, key):
         if key not in self._dict:
@@ -67,17 +67,18 @@ class Sprite():
     def __getitem__(self, key):
         if key not in self._dict:
             raise errors.LayerNotFound(key)
-        return Layer(self._dict[key])
+        return Layer(int(key), self._dict[key])
 
     def get_layers(self):
         return [i for i in self._dict]
 
     @property
     def layer(self):
-        return Layer(self._dict["1"])
+        return Layer(1, self._dict["1"])
 
 class Layer():
-    def __init__(self, data):
+    def __init__(self, num, data):
+        self.num = num
         self._dict = data
         self.root = data["root"]
         self.frames = data["frames"]
@@ -138,6 +139,10 @@ class Layer():
             if root == "sprLogo_alt_" and frame >= 15:
                 frame = 15 + (((frame - 19) % 4)//2) # Alternate 15 to 18
             
+            if root.startswith("sprChicoryportrait"):
+                frame = 4 - self.num
+                print(self.num, frame)
+            print(root + str(frame))
             return root + str(frame)
         else:
             if frame not in self.named_frames:

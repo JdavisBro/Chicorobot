@@ -266,7 +266,11 @@ def add_sprite(path):
 
     if sprite in ["Chicoryportrait", "Castleportrait", "Finaltreearm", "Linefx", "Oozewiggle", "Queen_antennaA", "Queen_antennaB", "Townflowers", "Townpath"]:
         sprite = sprite + "_" + str(layer)
-        layer = 1
+        if sprite.startswith("Chicoryportrait"):
+            layer = frame + 1
+            frame = 0
+        else:
+            layer = 1
 
     if sprite == "Logo" and layer == 2:
         frame += 8
