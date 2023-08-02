@@ -286,8 +286,8 @@ async def create_sprite(
         frames = []
         order = []
         delays = []
-        if sprite.layer.speed != 1:
-            animation_speed *= sprite.layer.speed
+        if sprite.layer.speed != 1 and animation_speed == 1:
+            animation_speed = sprite.layer.speed
         disallowed_anims = [] # For animations with more than 100 frames I disallow using them multiple times
         anims = [i for i in animation_seq.split(";")]
         if len(anims) > 10:
