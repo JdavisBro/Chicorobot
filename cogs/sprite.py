@@ -631,7 +631,7 @@ class SpriteCog(commands.Cog):
         )
         att = [file] if file else []
         if colors and use_palette.lower() != "none":
-            out += f"{'Random ' if use_palette else ''}Palette: `{chosen}`"
+            out += f"{'Random ' if use_palette.lower() == 'random' else ''}Palette: `{chosen}`"
         await msg.edit(content=out, attachments=att, view=SpriteModificationView(animated=(temp is not None), random_sprite=True))
         if file:
             file.close()
