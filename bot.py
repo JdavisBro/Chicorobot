@@ -57,8 +57,6 @@ class Chicorobot(commands.Bot):
             if self.guild:
                 self.tree.copy_global_to(guild=self.guild)
             await self.tree.sync(guild=self.guild)
-
-        self.add_view(bot.SpriteModificationView)
         
         appinfo = await bot.application_info()
         bot.ownerid = appinfo.owner.id

@@ -22,7 +22,6 @@ from chicorobot.utils import *
 
 async def setup(bot):
     await bot.add_cog(SpriteCog(bot))
-    bot.SpriteModificationView = SpriteModificationView(animated=False)
 
 def del_temp(temp):
     if temp:
@@ -37,7 +36,8 @@ default_data = {
     "user": 0,
     "sprite": "sprMarioRpg", "animated": False, "animation_seq": None, "animation_fps": 10, "animation_speed": 1,
     "crop_transparency": True, "use_frame": None, "output_zip": False,
-    "colour_1": "#ffffff", "colour_2": "#ffffff", "colour_3": "#ffffff"
+    "colour_1": "#ffffff", "colour_2": "#ffffff", "colour_3": "#ffffff",
+    "random": None
 }
 
 async def get_data(msg):
@@ -60,7 +60,7 @@ class RetryModalView(discord.ui.View):
         self.message = modal.message
         self.err_msg = err_msg
     
-    @discord.ui.button(label="Re-enter", emoji="🔁")
+    @discord.ui.button(label="Re-enter", emoji="🔀")
     async def reenter(self, interaction, button):
         await interaction.response.send_modal(SpriteInputModal(self.input_type, self.data, self.message, self.err_msg))
 
@@ -71,6 +71,7 @@ class SpriteInputModal(discord.ui.Modal, title="Input!"):
         self.input_type = input_type
         self.data = data
         self.original_user = self.data.pop("user")
+        self.data.pop("random")
         def add_error(label, error):
             if error:
                 return label + " - " + error
@@ -184,11 +185,13 @@ class SpriteInputModal(discord.ui.Modal, title="Input!"):
         del_temp(temp)
 
 class SpriteModificationView(discord.ui.View):
-    def __init__(self, animated):
+    def __init__(self, animated, random_sprite=False):
         super().__init__(timeout=None)
         if animated:
             self.animate.label = "Make Image"
             self.animate.emoji = "🖼️"
+        if not random_sprite:
+            self.remove_item(self.random)
 
     async def send_modal(self, interaction, type):
         data = await get_data(interaction.message)
@@ -200,6 +203,7 @@ class SpriteModificationView(discord.ui.View):
         data = await get_data(interaction.message)
         user = data["user"]
         data.pop("user")
+        data.pop("random")
         data["animated"] = not data["animated"]
         data["output_zip"] = False
         out, file, msg, temp = await create_sprite(interaction, **data)
@@ -229,11 +233,23 @@ class SpriteModificationView(discord.ui.View):
     async def other_options(self, interaction, button):
         await self.send_modal(interaction, 3)
 
+    @discord.ui.button(label="Random", emoji="🔀", custom_id="spritemod:re_random")
+    async def random(self, interaction, button):
+        sprite = interaction.client.get_cog("SpriteCog")
+        data = await get_data(interaction.message)
+        animated, colors, palette = data["random"].split(";")
+        animated = animated == "1"
+        colors = colors == "1"
+        for cmd in sprite.walk_app_commands():
+            if cmd.name == "random_character":
+                await cmd.callback(sprite, interaction, animated, colors, palette)
+
 async def create_sprite(
         interaction: discord.Interaction,
         sprite: str, animated: bool=False, animation_seq: str=None, animation_fps: int=10, animation_speed: int=1,
         crop_transparency: bool=True, use_frame: str=None, output_zip: bool=False,
-        colour_1: str="#ffffff", colour_2: str="#ffffff", colour_3: str=None
+        colour_1: str="#ffffff", colour_2: str="#ffffff", colour_3: str=None,
+        random_sprite: str=""
     ):
     await interaction.response.defer()
     sprite = sprite.replace(" ","_")
@@ -429,11 +445,19 @@ async def create_sprite(
                 ims = im
             break
 
+    def rgb_to_hex(rgb):
+        if not isinstance(rgb, (list, tuple)):
+            print(rgb)
+            raise errors.ColourError()
+        r,g,b = rgb
+        return "#{:02x}{:02x}{:02x}".format(r,g,b)
+
     data = {
         "user": interaction.user.id,
         "sprite": name, "animated": animated, "animation_seq": animation_seq, "animation_fps": animation_fps or 10, "animation_speed": animation_speed,
         "crop_transparency": crop_transparency, "use_frame": use_frame, "output_zip": output_zip,
-        "colour_1": colour_1, "colour_2": colour_2, "colour_3": colour_3
+        "colour_1": colour_1 if isinstance(colour_1, str) else rgb_to_hex(colour_1), "colour_2": colour_2 if isinstance(colour_2, str) else rgb_to_hex(colour_2), "colour_3": colour_3 if isinstance(colour_3, str) else rgb_to_hex(colour_3),
+        "random": random_sprite
     }
 
     for i in default_data.keys():
@@ -515,7 +539,7 @@ class SpriteCog(commands.Cog):
         self.bot = bot
         self.ctx_menu = app_commands.ContextMenu(name="Get Sprite Info", callback=self.sprite_info, extras={"ephemeral": True})
         bot.tree.add_command(self.ctx_menu)
-        modview = SpriteModificationView(1)
+        modview = SpriteModificationView(1, True)
         if not self.bot.SpriteModificationView:
             self.bot.SpriteModificationView = modview
             self.bot.add_view(self.bot.SpriteModificationView)
@@ -567,3 +591,43 @@ class SpriteCog(commands.Cog):
                 value = f"`{value}`"
             embed.add_field(name=to_titlecase(key.replace("_", " ")), value=value, inline=(key != "user"))
         await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    @app_commands.command(description="Gets a random character.")
+    @app_commands.autocomplete(use_palette=autocomplete.random_palette)
+    async def random_character(self, interaction, animated: bool=False, colors: bool=True, use_palette: str="None"):
+        sprite = random.choice(characters)
+        if sprite in characters_dupes:
+            sprite = random.choice(characters_dupes[sprite])
+        if colors:
+            if use_palette.lower() != "none": # Single palette limited
+                if use_palette.lower() != "random": # Specified palette
+                    palette = to_titlecase(use_palette)
+
+                    if palette in paletteAliases:
+                        chosen = paletteAliases[palette]
+                    else:
+                        return await interaction.response.send("Incorrect palette.")
+                else:
+                    chosen = random.choice(randomablePalettes)
+                cols = palettes[chosen]
+            else: # Not single palette limited
+                cols = all_colours
+            colour_1 = tuple(random.choice(cols))
+            colour_2 = tuple(random.choice(cols))
+        else:
+            colour_1 = "#ffffff"
+            colour_2 = "#ffffff"
+        out, file, msg, temp = await create_sprite(
+            interaction,
+            sprite, animated, None, 10, 1,
+            True, None, False,
+            colour_1, colour_2, colour_1,
+            f"{int(animated)};{int(colors)};{use_palette}"
+        )
+        att = [file] if file else []
+        if colors and use_palette.lower() != "none":
+            out += f"{'Random ' if use_palette else ''}Palette: `{chosen}`"
+        await msg.edit(content=out, attachments=att, view=SpriteModificationView(animated=(temp is not None), random_sprite=True))
+        if file:
+            file.close()
+        del_temp(temp)

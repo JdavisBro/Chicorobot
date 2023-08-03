@@ -141,8 +141,6 @@ class Layer():
             
             if root.startswith("sprChicoryportrait"):
                 frame = 4 - self.num
-                print(self.num, frame)
-            print(root + str(frame))
             return root + str(frame)
         else:
             if frame not in self.named_frames:
