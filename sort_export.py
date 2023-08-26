@@ -33,7 +33,7 @@ dogClothes = [
     "Nice Shirt",
     "Smock",
     "Island",
-    "Splash Pants",
+    "Splashpants",
     "Splash Onesie",
     "College",
     "Biker Jacket",
