@@ -71,7 +71,8 @@ class SpriteInputModal(discord.ui.Modal, title="Input!"):
         self.input_type = input_type
         self.data = data
         self.original_user = self.data.pop("user")
-        self.data.pop("random")
+        if "random" in self.data:
+            self.data.pop("random")
         def add_error(label, error):
             if error:
                 return label + " - " + error
