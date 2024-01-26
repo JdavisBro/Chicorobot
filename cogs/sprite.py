@@ -409,12 +409,8 @@ async def create_sprite(
                 layerframe = frame
                 if layer.offset:
                     layerframe -= layer.offset
-                try:
-                    layernum = int(i)
-                except ValueError:
-                    col = colour_2
-                else:
-                    col = colour_2 if (layernum % 2 == 0) else colour_3
+                layernum = layer.num
+                col = colour_2 if (layernum % 2 == 0) else colour_3
                 im2 = await layer.load_frame(layerframe, anim=anim, colour=col)
                 im2n = numpy.array(im2)
                 im2n = numpy.where(im2n[:, :, 3] > 0)
