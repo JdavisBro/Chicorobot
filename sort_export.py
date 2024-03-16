@@ -60,12 +60,17 @@ dogClothes = [
     "Hiker" #
 ]
 
-blackTeeDuplicates = [
-    "Kerchief",
-    "Scarf",
-    "Shawl",
-    "Spike",
-]
+duplicates = {
+    "Black Tee": [
+        "Kerchief",
+        "Scarf",
+        "Shawl",
+        "Spike",
+    ],
+    "Black Dress": [
+        "Studs",
+    ]
+}
 
 dogClothes2 = [ # 0, 1 = hat colour, 1 = Under head above arm, 2 = Fit colour and above head
     "IDK_2", # no clue
@@ -298,8 +303,8 @@ def add_sprite(path):
             spritesDict[sprite][layer]["frames"] = []
 
     if sprite == "Dog_body":
-        if dogClothes[frame] == "Black Tee":
-            for name in blackTeeDuplicates:
+        if dogClothes[frame] in duplicates.keys():
+            for name in duplicates[dogClothes[frame]]:
                 spritesDict[sprite][layer]["named_frames"][name] = frame
         spritesDict[sprite][layer]["named_frames"][dogClothes[frame]] = frame
     elif sprite == "Dog_body2":
