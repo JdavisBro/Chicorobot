@@ -58,7 +58,7 @@ class Utils(commands.Cog):
             else:
                 outl[-1].append(f"Frame '{start}'")
             sounds = prop_animations[sprite][anim]['frames']['sounds']
-            if sounds != -1:
+            if isinstance(sounds, dict):
                 soundlist = list(sounds.values())
                 soundlist = "', '".join(soundlist)
                 outl[-1].append(f"Plays: '{soundlist}'")
